@@ -71,9 +71,7 @@ attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
     toolbar_box = gtkconv->toolbar;
 
     check = gtk_check_button_new();
-
-    button = gtk_button_new_from_stock(GTK_STOCK_FIND);
-    gtk_button_set_label(GTK_BUTTON(button), "History");
+    button = gtk_button_new_with_label("History");
 
     g_signal_connect(G_OBJECT(check), "toggled",
 	    G_CALLBACK(history_enable), (gpointer) gtkconv);
