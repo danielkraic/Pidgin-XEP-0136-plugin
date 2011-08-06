@@ -1,6 +1,6 @@
 #define PURPLE_PLUGINS
 
-#include <glib.h>
+/*#include <glib.h>*/
 #include <gtk/gtk.h>
 
 #include "notify.h"
@@ -11,36 +11,13 @@
 #include <gtkplugin.h>
 #include <version.h>
 
+/*
+ * -------------------------------------------------- 
+ *            Pidgin XEP-136 plugin
+ * -------------------------------------------------- 
+ */
 
-/* we're adding this here and assigning it in plugin_load because we need
- * a valid plugin handle for our call to purple_notify_message() in the
- * plugin_action_test_cb() callback function */
-static PurplePlugin *xep136_plugin_pointer = NULL;
 
-static void
-notify_format_cb(PurplePluginAction *action)
-{
-    purple_notify_formatted(xep136_plugin_pointer, "Test notifikacie", "Test pre xep136", 
-	    "Test xep136",
-	    "<I>Test i formated bla bla.</I>", NULL, NULL);
-}
-
-/* we tell libpurple in the PurplePluginInfo struct to call this function to
- * get a list of plugin actions to use for the plugin.  This function gives
- * libpurple that list of actions. */
-static GList *
-plugin_actions(PurplePlugin *plugin, gpointer context)
-{
-    GList *actions = NULL;
-
-    actions = g_list_prepend(actions, 
-	    purple_plugin_action_new("Moj plugin cez Formated notification", notify_format_cb));
-
-    /* Once the list is complete, we send it to libpurple. */
-    return actions;
-}
-
-/* -------------------------------------------------- */
 static void
 history_enable(PidginConversation *gtkconv, gpointer null)
 {
@@ -49,6 +26,16 @@ history_enable(PidginConversation *gtkconv, gpointer null)
 static void
 detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
+    GtkWidget *toolbar_box, *vbox;
+
+    toolbar_box = gtkconv->toolbar;
+
+    vbox = g_object_get_data(G_OBJECT(toolbar_box), "xep136_vbox");
+
+    if (vbox)
+	gtk_container_remove(GTK_CONTAINER(toolbar_box), vbox);
+    
+    gtk_widget_queue_draw(pidgin_conv_get_window(gtkconv)->window);
 }
 
 static void
@@ -65,6 +52,7 @@ attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
 
     vbox = gtk_vbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(vbox), check, FALSE, FALSE, 0);
+    g_object_set_data(G_OBJECT(toolbar_box), "xep136_vbox", vbox);
 
     gtk_box_pack_end(GTK_BOX(toolbar_box), vbox, FALSE, FALSE, 0);
 
