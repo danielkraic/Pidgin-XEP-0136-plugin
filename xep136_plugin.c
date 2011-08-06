@@ -2,38 +2,63 @@
 
 /*#include <glib.h>*/
 #include <gtk/gtk.h>
+#include <gdk/gdk.h>
 
 #include "notify.h"
 #include "plugin.h"
 #include "version.h"
+
 #include <gtkconv.h>
 #include <gtkimhtml.h>
 #include <gtkplugin.h>
 #include <version.h>
+
+#include "gtksourceundomanager.h"
+#include "connection.h"
 
 /*
  * -------------------------------------------------- 
  *            Pidgin XEP-136 plugin
  * -------------------------------------------------- 
  */
-
+static PurplePlugin *xep136 = NULL;
 
 static void
-history_enable(PidginConversation *gtkconv, gpointer null)
+history_enable(GtkToggleButton *check, PidginConversation *gtkconv)
 {
+    PurpleConversation *conv;
+    PurpleConvIm *im;
+    char *text;
+    char *message[] = {
+	"XEP-136 message archiving enabled!",
+	"XEP-136 message archiving disabled!"
+    };
+
+     if (gtk_toggle_button_get_active(check))
+	 text = message[0];
+     else
+	 text = message[1];
+
+    conv = gtkconv->active_conv;
+    im = PURPLE_CONV_IM(conv); 
+
+    g_return_if_fail(conv != NULL);
+
+    purple_conv_im_write(im, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
+   
 }
 
 static void
 detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
-    GtkWidget *toolbar_box, *vbox;
+    GtkWidget *toolbar_box, *hbox;
 
     toolbar_box = gtkconv->toolbar;
 
-    vbox = g_object_get_data(G_OBJECT(toolbar_box), "xep136_vbox");
+    hbox = g_object_get_data(G_OBJECT(toolbar_box), "xep136_hbox");
 
-    if (vbox)
-	gtk_container_remove(GTK_CONTAINER(toolbar_box), vbox);
+    if (hbox)
+	gtk_container_remove(GTK_CONTAINER(toolbar_box), hbox);
     
     gtk_widget_queue_draw(pidgin_conv_get_window(gtkconv)->window);
 }
@@ -41,22 +66,26 @@ detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
 static void
 attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
-    GtkWidget *toolbar_box, *vbox, *check;
+    GtkWidget *toolbar_box, *hbox, *check, *button;
 
     toolbar_box = gtkconv->toolbar;
 
     check = gtk_check_button_new();
 
+    button = gtk_button_new_from_stock(GTK_STOCK_FIND);
+    gtk_button_set_label(GTK_BUTTON(button), "History");
+
     g_signal_connect(G_OBJECT(check), "toggled",
 	    G_CALLBACK(history_enable), (gpointer) gtkconv);
 
-    vbox = gtk_vbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(vbox), check, FALSE, FALSE, 0);
-    g_object_set_data(G_OBJECT(toolbar_box), "xep136_vbox", vbox);
+    hbox = gtk_hbox_new(FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(hbox), check, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+    g_object_set_data(G_OBJECT(toolbar_box), "xep136_hbox", hbox);
 
-    gtk_box_pack_end(GTK_BOX(toolbar_box), vbox, FALSE, FALSE, 0);
+    gtk_box_pack_end(GTK_BOX(toolbar_box), hbox, FALSE, FALSE, 0);
 
-    gtk_widget_show_all(vbox);
+    gtk_widget_show_all(hbox);
 
     gtk_widget_queue_draw(pidgin_conv_get_window(gtkconv)->window);
 }
@@ -98,6 +127,8 @@ conv_created_cb(PurpleConversation *conv, gpointer null)
 static gboolean
 plugin_load(PurplePlugin *plugin)
 {
+    xep136 = plugin;
+
     attach_to_all_windows();
 
     purple_signal_connect(purple_conversations_get_handle(), 
