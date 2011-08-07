@@ -23,21 +23,78 @@
  */
 static PurplePlugin *xep136 = NULL;
 
+static gboolean
+history_off(PidginConversation *gtkconv)
+{
+    //TODO vypnut 
+    
+    return TRUE;
+}
+
+
+static gboolean
+history_on(PidginConversation *gtkconv)
+{
+    // TODO zapnut
+    
+    return TRUE;
+}
+
+static int
+history_check(GtkToggleButton *check, PidginConversation *gtkconv)
+{
+    PurpleAccount *acc;
+    PurpleConversation *conv;
+    char *jabber_id = "prpl-jabber";
+    int res = 3; 				// default error
+
+    conv = gtkconv->active_conv;
+
+    //g_return_if_fail(conv != NULL);
+
+    acc = conv->account;
+    
+    // id must be prpl-jabber
+    if (g_strcmp0(jabber_id, purple_account_get_protocol_id(acc)))
+	return 2;		// not supported
+
+    if(gtk_toggle_button_get_active(check)) {
+	// toggle button active
+	if (history_on(gtkconv))
+	    res = 0;		// enabled
+	else 
+	    res = 2;
+    }
+    else {
+	// toggle button not active
+	if (history_off(gtkconv))
+	    res = 1;		// disabled
+	else 
+	    res = 2;
+    }
+   
+    return res;
+}
+
 static void
-history_enable(GtkToggleButton *check, PidginConversation *gtkconv)
+history_change(GtkToggleButton *check, PidginConversation *gtkconv)
 {
     PurpleConversation *conv;
     PurpleConvIm *im;
+    int res = 3; 				// default error
     char *text;
     char *message[] = {
-	"XEP-136 message archiving enabled!",
-	"XEP-136 message archiving disabled!"
+	"XEP-136: message archiving enabled!", 	// 0 enabled
+	"XEP-136: message archiving disabled!", // 1 disabled
+	"XEP-136: not supported!",		// 2 not supported
+	"XEP-136: Error!"			// 3 error
     };
 
-     if (gtk_toggle_button_get_active(check))
-	 text = message[0];
-     else
-	 text = message[1];
+    res = history_check(check, gtkconv);
+    text = message[res];
+
+//  if (res == 2 || res == 3)
+//	gtk_toggle_button_set_active(check, FALSE);
 
     conv = gtkconv->active_conv;
     im = PURPLE_CONV_IM(conv); 
@@ -45,8 +102,30 @@ history_enable(GtkToggleButton *check, PidginConversation *gtkconv)
     g_return_if_fail(conv != NULL);
 
     purple_conv_im_write(im, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
-   
 }
+
+#if 0
+static void
+protocol(GtkToggleButton *check, PidginConversation *gtkconv)
+{
+    PurpleAccount *acc;
+    PurpleConversation *conv;
+    PurpleConvIm *im;
+    char *text;
+    char *id;
+
+    conv = gtkconv->active_conv;
+    im = PURPLE_CONV_IM(conv); 
+
+    acc = conv->account;
+    id = purple_account_get_protocol_id(acc);
+    text = g_strdup_printf("protocol_id: %s", id); 
+ 
+    g_return_if_fail(conv != NULL);
+
+    purple_conv_im_write(im, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
+}
+#endif
 
 static void
 detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
@@ -74,7 +153,12 @@ attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
     button = gtk_button_new_with_label("History");
 
     g_signal_connect(G_OBJECT(check), "toggled",
-	    G_CALLBACK(history_enable), (gpointer) gtkconv);
+	    G_CALLBACK(history_change), (gpointer) gtkconv);
+
+    /* debug
+    g_signal_connect(G_OBJECT(check), "toggled",
+	    G_CALLBACK(protocol), (gpointer) gtkconv);
+    */
 
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), check, FALSE, FALSE, 0);
