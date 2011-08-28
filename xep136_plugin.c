@@ -31,9 +31,10 @@ typedef struct _WindowStruct {
     GtkWidget *window;
     GtkWidget *hbox;
     GtkWidget *vbox;
-    GtkWidget *button;
     GtkWidget *imhtml;
+    GtkWidget *label;
     GtkWidget *entry;
+    GtkWidget *button;
     PidginConversation *gtkconv;
 } WindowStruct;
 
@@ -56,22 +57,26 @@ history_window_create(GtkWidget *button, PidginConversation *gtkconv)
     history_window = g_new0(WindowStruct, 1);
 
     history_window->window = pidgin_create_window(_("XEP-136 History"), PIDGIN_HIG_BORDER, NULL, TRUE);
-    gtk_window_set_default_size(GTK_WINDOW(history_window->window), 600, 400);
+    gtk_window_set_default_size(GTK_WINDOW(history_window->window), 300, 350);
 
     g_signal_connect(G_OBJECT(history_window->window), "destroy", 
 	    G_CALLBACK(history_window_destroy), NULL);
 
     history_window->imhtml = gtk_imhtml_new(NULL, NULL);
+    history_window->label = gtk_label_new("Search ");
     history_window->entry = gtk_entry_new();
     history_window->button = gtk_button_new_from_stock(GTK_STOCK_FIND);
 
     history_window->hbox = gtk_hbox_new(FALSE, 3);
     history_window->vbox = gtk_vbox_new(FALSE, 3);
 
-    gtk_box_pack_start(GTK_BOX(history_window->vbox), history_window->imhtml, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->vbox), 
+		pidgin_make_scrollable(history_window->imhtml, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC, GTK_SHADOW_ETCHED_IN, -1, -1),
+		TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->vbox), history_window->hbox, FALSE, FALSE, 0);
 
-    gtk_box_pack_start(GTK_BOX(history_window->hbox), history_window->entry, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->hbox), history_window->label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->hbox), history_window->entry, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->hbox), history_window->button, FALSE, FALSE, 0);
 
     gtk_container_add(GTK_CONTAINER(history_window->window), history_window->vbox);
