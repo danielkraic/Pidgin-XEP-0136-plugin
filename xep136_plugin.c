@@ -316,6 +316,7 @@ history_window_create(GtkWidget *button, PidginConversation *gtkconv)
 
 }
 
+#if 0
 static gboolean
 history_off(PidginConversation *gtkconv)
 {
@@ -399,6 +400,7 @@ history_change(GtkToggleButton *check, PidginConversation *gtkconv)
 
     purple_conv_im_write(im, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
 }
+#endif
 
 static void
 detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
@@ -418,21 +420,16 @@ detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
 static void
 attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
-    GtkWidget *toolbar_box, *hbox, *check, *button;
+    GtkWidget *toolbar_box, *hbox, *button;
 
     toolbar_box = gtkconv->toolbar;
 
-    check = gtk_check_button_new();
     button = gtk_button_new_with_label("History");
-
-    g_signal_connect(G_OBJECT(check), "toggled",
-	    G_CALLBACK(history_change), (gpointer) gtkconv);
 
     g_signal_connect(G_OBJECT(button), "clicked",
 	    G_CALLBACK(history_window_create), (gpointer) gtkconv);
 
     hbox = gtk_hbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), check, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
     g_object_set_data(G_OBJECT(toolbar_box), "xep136_hbox", hbox);
 
