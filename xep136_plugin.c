@@ -40,6 +40,216 @@ typedef struct _WindowStruct {
 
 WindowStruct *history_window = NULL;
 
+
+/* 
+ * --------------------------------------------------
+ * skopirovane
+ * --------------------------------------------------
+ */
+
+#if 0
+#define BRACKET_COLOR "#940f8c"
+#define TAG_COLOR "#8b1dab"
+#define ATTR_NAME_COLOR "#a02961"
+#define ATTR_VALUE_COLOR "#324aa4"
+#define XMLNS_COLOR "#2cb12f"
+
+static char *
+xmlnode_to_pretty_str(xmlnode *node, int *len, int depth)
+{
+	GString *text = g_string_new("");
+	xmlnode *c;
+	char *node_name, *esc, *esc2, *tab = NULL;
+	gboolean need_end = FALSE, pretty = TRUE;
+
+	g_return_val_if_fail(node != NULL, NULL);
+
+	/*
+	if (pretty && depth) {
+		tab = g_strnfill(depth, '\t');
+		text = g_string_append(text, tab);
+	}
+	*/
+
+	node_name = g_markup_escape_text(node->name, -1);
+	g_string_append_printf(text,
+	                       /*"<font color='" BRACKET_COLOR "'>&lt;</font>"*/
+	                       "<font color='" TAG_COLOR "'><b>%s</b></font>",
+	                       node_name);
+
+	/*
+	if (node->xmlns) {
+		if ((!node->parent ||
+		     !node->parent->xmlns ||
+		     strcmp(node->xmlns, node->parent->xmlns)) &&
+		    strcmp(node->xmlns, "jabber:client"))
+		{
+			char *xmlns = g_markup_escape_text(node->xmlns, -1);
+			g_string_append_printf(text,
+			                       " <font color='" ATTR_NAME_COLOR "'><b>xmlns</b></font>="
+			                       "'<font color='" XMLNS_COLOR "'><b>%s</b></font>'",
+			                       xmlns);
+			g_free(xmlns);
+		}
+	}
+	*/
+
+	for (c = node->child; c; c = c->next)
+	{
+		if (c->type == XMLNODE_TYPE_ATTRIB) {
+			esc = g_markup_escape_text(c->name, -1);
+			esc2 = g_markup_escape_text(c->data, -1);
+			/*
+			g_string_append_printf(text,
+			                       " <font color='" ATTR_NAME_COLOR "'><b>%s</b></font>="
+			                       "'<font color='" ATTR_VALUE_COLOR "'>%s</font>'",
+			                       esc, esc2);
+					       */
+			g_string_append_printf(text, " <b>%s</b>=%s", esc, esc2);
+			g_free(esc);
+			g_free(esc2);
+		} else if (c->type == XMLNODE_TYPE_TAG || c->type == XMLNODE_TYPE_DATA) {
+			if (c->type == XMLNODE_TYPE_DATA)
+				pretty = FALSE;
+			need_end = TRUE;
+		}
+	}
+
+	if (need_end) {
+	    /*
+		g_string_append_printf(text,
+		                       "<font color='"BRACKET_COLOR"'>&gt;</font>%s",
+		                       "&gt; %s", pretty ? "<br>" : "");
+				       */
+
+		for (c = node->child; c; c = c->next)
+		{
+			if (c->type == XMLNODE_TYPE_TAG) {
+				int esc_len;
+				esc = xmlnode_to_pretty_str(c, &esc_len, depth+1);
+				text = g_string_append_len(text, esc, esc_len);
+				g_free(esc);
+			} else if (c->type == XMLNODE_TYPE_DATA && c->data_sz > 0) {
+				esc = g_markup_escape_text(c->data, c->data_sz);
+				text = g_string_append(text, esc);
+				g_free(esc);
+			}
+		}
+
+		if(tab && pretty)
+			text = g_string_append(text, tab);
+		
+		g_string_append_printf(text,
+		                      /* "<font color='" BRACKET_COLOR "'>&lt;</font>/"*/
+		                       "<font color='" TAG_COLOR "'><b>%s </b></font><br>",
+		                      /*"<font color='" BRACKET_COLOR "'>&gt;</font><br>",*/
+		                       node_name);
+				       
+	} else {
+	    /*
+		g_string_append_printf(text,
+		                       "/<font color='" BRACKET_COLOR "'>&gt;</font><br>");
+				       */
+	}
+
+	g_free(node_name);
+
+	g_free(tab);
+
+	if(len)
+		*len = text->len;
+
+	return g_string_free(text, FALSE);
+}
+#endif
+
+static void
+xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet, gpointer null)
+{
+    xmlnode *xml = *packet;
+    xmlnode *c = NULL;
+    xmlnode *d = NULL;
+    char *xmlns = "http://www.xmpp.org/extensions/xep-0136.html#ns";
+
+	if (!history_window /*|| console->gc != gc*/)
+		return;
+
+	if (strcmp(xml->name, "iq") == 0) {
+	    for (c = xml->child; c; c = c->next) {
+		if (strcmp(c->name, "query") == 0) {
+		    for (d = c->child; d; d = d->next) {
+			if ( (strcmp(d->name, "feature") == 0) && (strcmp( (d->child)->name, "var" ) == 0) ) {
+			    //gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), (d->child)->data, 0);
+			    //gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
+			    if (strcmp(( d->child)->data, xmlns) == 0) {
+				
+				gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "xep-0136 supported", 0);
+				gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
+			    }
+
+			}
+		    }
+		}
+	    }
+	}
+
+#if 0
+	gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "  ", 0);
+	gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), (*packet)->name, 0);
+
+	if ( (*packet)->xmlns != NULL ) {
+	    gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), " xmlns: ", 0);
+	    gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), (*packet)->xmlns, 0);
+	}
+	if ( (*packet)->data != NULL ) {
+	    gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), " data: ", 0);
+	    gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), (*packet)->data, 0);
+	}
+	gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "\n", 0);
+
+#endif
+
+
+#if 0
+	char *str, *formatted;
+
+	if (!strcmp((*packet)->name, "message")) {
+	    /*
+	    gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<b>message</b><br>", 0);
+	else
+	    gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<b>NIE message</b><br>", 0);
+	    */
+
+	    str = xmlnode_to_pretty_str(*packet, NULL, 0);
+	    //formatted = g_strdup_printf("<body bgcolor='#ffcece'><pre>%s</pre></body>", str);
+	    formatted = g_strdup_printf("<body><pre>%s</pre></body>", str);
+	    gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), formatted, 0);
+	    g_free(formatted);
+	    g_free(str);
+	}
+
+	/*
+	<iq to='debian6.sk' id='consoleaf6052dd' type='get'>
+	    <list xmlns='http://www.xmpp.org/extensions/xep-0136.html#ns' with='denko@debian6.sk' start='2008-01-01T00:00:00.000000Z'>
+		<set xmlns='http://jabber.org/protocol/rsm'>
+		    <max>100</max>
+		</set>
+	    </list>
+	</iq>
+	 */
+#endif
+}
+
+
+
+/* 
+ * --------------------------------------------------
+ * skopirovane
+ * --------------------------------------------------
+ */
+
+
+
 static void
 history_window_destroy(GtkWidget *button, gpointer null)
 {
@@ -96,6 +306,14 @@ history_off(PidginConversation *gtkconv)
 static gboolean
 history_on(PidginConversation *gtkconv)
 {
+    /*
+     
+    <iq to='debian6.sk' id='console75f65bee' type='get'>
+	<pref xmlns='http://www.xmpp.org/extensions/xep-0136.html#ns'/>
+    </iq>
+
+    */
+
     // TODO zapnut
     
     return TRUE;
@@ -240,13 +458,20 @@ conv_created_cb(PurpleConversation *conv, gpointer null)
 static gboolean
 plugin_load(PurplePlugin *plugin)
 {
-    xep136 = plugin;
+    PurplePlugin *jabber;
 
+    xep136 = plugin;
     attach_to_all_windows();
 
-    purple_signal_connect(purple_conversations_get_handle(), 
-	    "conversation-created",
-	    plugin, PURPLE_CALLBACK(conv_created_cb), NULL);
+    purple_signal_connect(purple_conversations_get_handle(), "conversation-created", plugin, 
+	    PURPLE_CALLBACK(conv_created_cb), NULL);
+
+    jabber = purple_find_prpl("prpl-jabber");
+    if (!jabber)
+	    return FALSE;
+
+    purple_signal_connect(jabber, "jabber-receiving-xmlnode", xep136,
+	    PURPLE_CALLBACK(xmlnode_received_cb), NULL);
 
     return TRUE;
 }
@@ -254,6 +479,9 @@ plugin_load(PurplePlugin *plugin)
 static gboolean
 plugin_unload(PurplePlugin *plugin)
 {
+    if (history_window)
+	gtk_widget_destroy(history_window->window);
+
     detach_from_all_windows();
 
     return TRUE;
