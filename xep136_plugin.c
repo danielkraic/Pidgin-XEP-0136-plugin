@@ -20,6 +20,12 @@
 #include <version.h>
 #include "gtkutils.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
+
 /*
  * -------------------------------------------------- 
  *            Pidgin XEP-136 plugin
@@ -47,6 +53,17 @@ typedef struct _WindowStruct {
 
 WindowStruct *history_window = NULL;
 
+static void
+message_send_cb(char *message, PurpleConnection *gc)
+{
+    PurplePluginProtocolInfo *prpl_info = NULL;
+
+    if (gc)
+	    prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
+
+    if (prpl_info && prpl_info->send_raw != NULL)
+	    prpl_info->send_raw(gc, message, strlen(message));
+}
 
 static void
 xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet, gpointer null)
@@ -86,13 +103,63 @@ history_window_destroy(GtkWidget *button, gpointer null)
     history_window = NULL;
 }
 
+static gchar * 
+get_server_name(gchar *username)
+{
+    gchar *server = NULL;
+    gchar *zav = NULL;
+    gchar *lom = NULL;
+
+    glong dlzka = g_utf8_strlen(username, -1);
+
+    zav = g_strstr_len(username, dlzka, "@");
+    lom = g_strstr_len(username, dlzka, "/");
+
+    zav++;
+
+    if (lom == NULL)
+    {
+	dlzka = g_utf8_strlen(zav, -1);
+    } else {
+	dlzka = g_utf8_strlen(zav, -1) - g_utf8_strlen(lom, -1);
+    }
+ 
+    server = (gchar *) g_malloc0( (dlzka + 1) * sizeof(gchar) );
+
+    g_strlcat (server, zav, dlzka + 1);
+
+    return server;
+}
+
 static void
 history_window_create(GtkWidget *button, PidginConversation *gtkconv)
 {
+    gchar *message = NULL;
+
+    PurpleConversation *purple_conv = gtkconv->active_conv;
+    PurpleAccount *acc = purple_conv->account;
+    PurpleConnection *gc = acc->gc;
+
+    char *username= acc->username;
+    char *server = NULL;
+
+    //purple_debug_misc(PLUGIN_ID, "username :: %s\n", username);
+
+    server = get_server_name(username);
+
+    //purple_debug_misc(PLUGIN_ID, "server :: %s\n", server);
+
+    if (server == NULL)
+	return;
+
     // ked uz existuje nerobi nic
     if (history_window)
 	return;
 
+    if (!gc)
+	purple_debug_misc(PLUGIN_ID, "PurpleConnection :: ER gc\n");
+
+    // create window
     history_window = g_new0(WindowStruct, 1);
 
     history_window->window = pidgin_create_window(_("XEP-136 History"), PIDGIN_HIG_BORDER, NULL, TRUE);
@@ -139,6 +206,22 @@ history_window_create(GtkWidget *button, PidginConversation *gtkconv)
     gtk_container_add(GTK_CONTAINER(history_window->window), history_window->mainbox);
     gtk_widget_show_all(history_window->window);
 
+    message = g_strdup_printf("<iq to='%s' id='xep135%x' type='get'><query xmlns='http://jabber.org/protocol/disco#info'/></iq>",
+	    server, g_random_int());
+    /*
+    <iq to='debian6.sk' id='console3813359' type='get'>
+	<query xmlns='http://jabber.org/protocol/disco#info'/>
+    </iq>
+    */
+
+    //purple_debug_misc(PLUGIN_ID, "message :: %s\n", message);
+
+    message_send_cb(message, gc);
+
+    //gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), message, 0);
+    //gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
+    
+    g_free(message);
 }
 
 static void
@@ -255,9 +338,9 @@ static PurplePluginInfo info = {
     NULL,
     PURPLE_PRIORITY_DEFAULT,
 
-    "gtk-daniel_kraic-xep136_plugin",
+    PLUGIN_ID,
     "XEP-136 plugin",
-    "1.2",
+    "1.5",
 
     "XEP-136 plugin",
     "XEP-136 plugin",
