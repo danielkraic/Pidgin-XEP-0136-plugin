@@ -132,34 +132,8 @@ get_server_name(gchar *username)
 }
 
 static void
-history_window_create(GtkWidget *button, PidginConversation *gtkconv)
+history_window_create(void)
 {
-    gchar *message = NULL;
-
-    PurpleConversation *purple_conv = gtkconv->active_conv;
-    PurpleAccount *acc = purple_conv->account;
-    PurpleConnection *gc = acc->gc;
-
-    char *username= acc->username;
-    char *server = NULL;
-
-    //purple_debug_misc(PLUGIN_ID, "username :: %s\n", username);
-
-    server = get_server_name(username);
-
-    //purple_debug_misc(PLUGIN_ID, "server :: %s\n", server);
-
-    if (server == NULL)
-	return;
-
-    // ked uz existuje nerobi nic
-    if (history_window)
-	return;
-
-    if (!gc)
-	purple_debug_misc(PLUGIN_ID, "PurpleConnection :: ER gc\n");
-
-    // create window
     history_window = g_new0(WindowStruct, 1);
 
     history_window->window = pidgin_create_window(_("XEP-136 History"), PIDGIN_HIG_BORDER, NULL, TRUE);
@@ -205,6 +179,37 @@ history_window_create(GtkWidget *button, PidginConversation *gtkconv)
 
     gtk_container_add(GTK_CONTAINER(history_window->window), history_window->mainbox);
     gtk_widget_show_all(history_window->window);
+}
+
+static void
+history_window_open(GtkWidget *button, PidginConversation *gtkconv)
+{
+    gchar *message = NULL;
+
+    PurpleConversation *purple_conv = gtkconv->active_conv;
+    PurpleAccount *acc = purple_conv->account;
+    PurpleConnection *gc = acc->gc;
+
+    char *username= acc->username;
+    char *server = NULL;
+
+ // ked uz existuje nerobi nic
+    if (history_window)
+	return;
+
+    server = get_server_name(username);
+
+    if (server == NULL) {
+	purple_debug_misc(PLUGIN_ID, "history_window_open :: ER server\n");
+	return;
+    }
+
+    if (!gc) {
+	purple_debug_misc(PLUGIN_ID, "history_window_open :: ER gc\n");
+	return;
+    }
+
+    history_window_create();
 
     message = g_strdup_printf("<iq to='%s' id='xep135%x' type='get'><query xmlns='http://jabber.org/protocol/disco#info'/></iq>",
 	    server, g_random_int());
@@ -213,13 +218,7 @@ history_window_create(GtkWidget *button, PidginConversation *gtkconv)
 	<query xmlns='http://jabber.org/protocol/disco#info'/>
     </iq>
     */
-
-    //purple_debug_misc(PLUGIN_ID, "message :: %s\n", message);
-
     message_send_cb(message, gc);
-
-    //gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), message, 0);
-    //gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
     
     g_free(message);
 }
@@ -249,7 +248,7 @@ attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
     button = gtk_button_new_with_label("History");
 
     g_signal_connect(G_OBJECT(button), "clicked",
-	    G_CALLBACK(history_window_create), (gpointer) gtkconv);
+	    G_CALLBACK(history_window_open), (gpointer) gtkconv);
 
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
