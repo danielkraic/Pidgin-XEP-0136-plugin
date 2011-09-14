@@ -86,7 +86,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet, gpointer null)
 			    if (strcmp(( d->child)->data, xmlns) == 0) {
 
 				gtk_widget_set_sensitive(history_window->rightbox, TRUE);
-				gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "XEP-0136 supported", 0);
+				gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "XEP-0136 supported!", 0);
 				gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
 			    }
 			}
@@ -131,6 +131,7 @@ get_server_name(gchar *username)
     return server;
 }
 
+//komentar
 static void
 history_window_create(void)
 {
