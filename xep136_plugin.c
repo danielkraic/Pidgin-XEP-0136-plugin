@@ -131,7 +131,7 @@ get_server_name(gchar *username)
     return server;
 }
 
-//komentar
+
 static void
 history_window_create(void)
 {
