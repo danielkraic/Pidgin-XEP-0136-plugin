@@ -54,7 +54,7 @@ typedef struct _WindowStruct {
 WindowStruct *history_window = NULL;
 
 static void
-message_send_cb(char *message, PurpleConnection *gc)
+message_send(char *message, PurpleConnection *gc)
 {
     PurplePluginProtocolInfo *prpl_info = NULL;
 
@@ -66,7 +66,7 @@ message_send_cb(char *message, PurpleConnection *gc)
 }
 
 static void
-xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet, gpointer null)
+xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
 {
     xmlnode *xml = *packet;
     xmlnode *c = NULL;
@@ -219,7 +219,7 @@ history_window_open(GtkWidget *button, PidginConversation *gtkconv)
 	<query xmlns='http://jabber.org/protocol/disco#info'/>
     </iq>
     */
-    message_send_cb(message, gc);
+    message_send(message, gc);
     
     g_free(message);
 }
@@ -287,7 +287,7 @@ attach_to_all_windows()
 }
 
 static void
-conv_created_cb(PurpleConversation *conv, gpointer null)
+conv_created(PurpleConversation *conv, gpointer null)
 {
     PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
 
@@ -305,14 +305,14 @@ plugin_load(PurplePlugin *plugin)
     attach_to_all_windows();
 
     purple_signal_connect(purple_conversations_get_handle(), "conversation-created", plugin, 
-	    PURPLE_CALLBACK(conv_created_cb), NULL);
+	    PURPLE_CALLBACK(conv_created), NULL);
 
     jabber = purple_find_prpl("prpl-jabber");
     if (!jabber)
 	    return FALSE;
 
     purple_signal_connect(jabber, "jabber-receiving-xmlnode", xep136,
-	    PURPLE_CALLBACK(xmlnode_received_cb), NULL);
+	    PURPLE_CALLBACK(xmlnode_received), NULL);
 
     return TRUE;
 }
