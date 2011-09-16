@@ -63,6 +63,7 @@ received_iq(xmlnode *xml)
 			gtk_widget_set_sensitive(history_window->rightbox, TRUE);
 			gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "XEP-0136 supported!", 0);
 			gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
+			return;
 		    }
 		}
 	    }
@@ -139,30 +140,25 @@ message_send(char *message, PidginConversation *gtkconv)
 	    prpl_info->send_raw(gc, message, strlen(message));
 }
 
-#if 0
 static void
 show_clicked(GtkWidget *button, PidginConversation *gtkconv)
 {
-    char *server = get_server_name(gtkconv);
     gchar *message = NULL;
+
+    //TODO function to get username
     char *with = "denko@debian6.sk";
-
     
-    //purple_debug_misc(PLUGIN_ID, "history_window_open :: show clicked\n");
-
 /*
-<iq type='get' id='page1'>
-  <retrieve xmlns='urn:xmpp:archive'
-            with='juliet@capulet.com/chamber'
-            start='1469-07-21T02:56:15Z'>
-    <set xmlns='http://jabber.org/protocol/rsm'>
-      <max>100</max>
-    </set>
-  </retrieve>
+<iq id='console88bd5fdc' type='get'>
+	<list xmlns='http://www.xmpp.org/extensions/xep-0136.html#ns' with='denko@debian6.sk'>
+		<set xmlns='http://jabber.org/protocol/rsm'>
+			<max>100</max>
+		</set>
+	</list>
 </iq>
 */
-
-    message = g_strdup_printf("<iq to='%s' id='xep135%x' type='get'><retrieve xmlns='%s' with='%s'/><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", server, g_random_int(), xmlns, with);
+    
+    message = g_strdup_printf("<iq id='xep135%x' type='get'><list xmlns='http://www.xmpp.org/extensions/xep-0136.html#ns' with='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", g_random_int(), with);
 
     //purple_debug_misc(PLUGIN_ID, "history_window_open :: %s\n", message);
     message_send(message, gtkconv);
@@ -170,7 +166,6 @@ show_clicked(GtkWidget *button, PidginConversation *gtkconv)
     g_free(message);
 
 }
-#endif
 
 static void
 send_disco_info(PidginConversation *gtkconv)
@@ -224,10 +219,8 @@ history_window_create(PidginConversation *gtkconv)
     history_window->enable = gtk_button_new_with_label("Enable");
     history_window->disable = gtk_button_new_with_label("Disable");
 
-    /*
     g_signal_connect(G_OBJECT(history_window->show), "clicked",
 	    G_CALLBACK(show_clicked), (gpointer) gtkconv);
-	    */
 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
