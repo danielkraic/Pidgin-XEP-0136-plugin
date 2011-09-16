@@ -26,12 +26,6 @@
 
 #define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
 
-/*
- * -------------------------------------------------- 
- *            Pidgin XEP-136 plugin
- * -------------------------------------------------- 
- */
-
 static PurplePlugin *xep136 = NULL;
 
 typedef struct _WindowStruct {
@@ -53,62 +47,55 @@ typedef struct _WindowStruct {
 
 WindowStruct *history_window = NULL;
 
+char *xmlns = "http://www.xmpp.org/extensions/xep-0136.html#ns";
+
 static void
-message_send(char *message, PurpleConnection *gc)
+received_iq(xmlnode *xml)
 {
-    PurplePluginProtocolInfo *prpl_info = NULL;
+    xmlnode *c = NULL;
+    xmlnode *d = NULL;
 
-    if (gc)
-	    prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
-
-    if (prpl_info && prpl_info->send_raw != NULL)
-	    prpl_info->send_raw(gc, message, strlen(message));
+    for (c = xml->child; c; c = c->next) {
+	if (strcmp(c->name, "query") == 0) {
+	    for (d = c->child; d; d = d->next) {
+		if ( (strcmp(d->name, "feature") == 0) && (strcmp( (d->child)->name, "var" ) == 0) ) {
+		    if (strcmp(( d->child)->data, xmlns) == 0) {
+			gtk_widget_set_sensitive(history_window->rightbox, TRUE);
+			gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "XEP-0136 supported!", 0);
+			gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
+		    }
+		}
+	    }
+	}
+    }
 }
 
 static void
 xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
 {
     xmlnode *xml = *packet;
-    xmlnode *c = NULL;
-    xmlnode *d = NULL;
-    char *xmlns = "http://www.xmpp.org/extensions/xep-0136.html#ns";
 
-	if (!history_window /*|| console->gc != gc*/)
-		return;
+    // check if there is a connection?
+    if (!history_window /*|| console->gc != gc*/)
+	return;
 
-	if (strcmp(xml->name, "iq") == 0) {
-	    for (c = xml->child; c; c = c->next) {
-		if (strcmp(c->name, "query") == 0) {
-		    for (d = c->child; d; d = d->next) {
-			if ( (strcmp(d->name, "feature") == 0) && (strcmp( (d->child)->name, "var" ) == 0) ) {
-			    //gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), (d->child)->data, 0);
-			    //gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
-			    if (strcmp(( d->child)->data, xmlns) == 0) {
+    if (strcmp(xml->name, "iq") == 0) {
+	received_iq(xml);
+    }
 
-				gtk_widget_set_sensitive(history_window->rightbox, TRUE);
-				gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "XEP-0136 supported!", 0);
-				gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
-			    }
-			}
-		    }
-		}
-	    }
-	}
-}
-
-static void
-history_window_destroy(GtkWidget *button, gpointer null)
-{
-    g_free(history_window);
-    history_window = NULL;
 }
 
 static gchar * 
-get_server_name(gchar *username)
+get_server_name(PidginConversation *gtkconv)
 {
+    PurpleConversation *purple_conv = gtkconv->active_conv;
+    PurpleAccount *acc = purple_conv->account;
+
+    char *username= acc->username;
+
     gchar *server = NULL;
-    gchar *zav = NULL;
-    gchar *lom = NULL;
+    gchar *zav = NULL; //pointer to '@'
+    gchar *lom = NULL; //pointer to '/'
 
     glong dlzka = g_utf8_strlen(username, -1);
 
@@ -130,10 +117,94 @@ get_server_name(gchar *username)
 
     return server;
 }
+    
+static void
+message_send(char *message, PidginConversation *gtkconv)
+{
+    PurpleConversation *purple_conv = gtkconv->active_conv;
+    PurpleAccount *acc = purple_conv->account;
+    PurpleConnection *gc = acc->gc;
 
+    PurplePluginProtocolInfo *prpl_info = NULL;
+
+    if (!gc) {
+	purple_debug_misc(PLUGIN_ID, "history_window_open :: ER gc\n");
+	return;
+    }
+
+    if (gc)
+	    prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
+
+    if (prpl_info && prpl_info->send_raw != NULL)
+	    prpl_info->send_raw(gc, message, strlen(message));
+}
+
+#if 0
+static void
+show_clicked(GtkWidget *button, PidginConversation *gtkconv)
+{
+    char *server = get_server_name(gtkconv);
+    gchar *message = NULL;
+    char *with = "denko@debian6.sk";
+
+    
+    //purple_debug_misc(PLUGIN_ID, "history_window_open :: show clicked\n");
+
+/*
+<iq type='get' id='page1'>
+  <retrieve xmlns='urn:xmpp:archive'
+            with='juliet@capulet.com/chamber'
+            start='1469-07-21T02:56:15Z'>
+    <set xmlns='http://jabber.org/protocol/rsm'>
+      <max>100</max>
+    </set>
+  </retrieve>
+</iq>
+*/
+
+    message = g_strdup_printf("<iq to='%s' id='xep135%x' type='get'><retrieve xmlns='%s' with='%s'/><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", server, g_random_int(), xmlns, with);
+
+    //purple_debug_misc(PLUGIN_ID, "history_window_open :: %s\n", message);
+    message_send(message, gtkconv);
+    
+    g_free(message);
+
+}
+#endif
 
 static void
-history_window_create(void)
+send_disco_info(PidginConversation *gtkconv)
+{  
+    char *server = get_server_name(gtkconv);
+    gchar *message = NULL;
+
+    if (server == NULL) {
+	purple_debug_misc(PLUGIN_ID, "history_window_open :: ER server\n");
+	return;
+    }
+
+    message = g_strdup_printf("<iq to='%s' id='xep135%x' type='get'><query xmlns='http://jabber.org/protocol/disco#info'/></iq>",
+	    server, g_random_int());
+    /*
+    <iq to='debian6.sk' id='console3813359' type='get'>
+	<query xmlns='http://jabber.org/protocol/disco#info'/>
+    </iq>
+    */
+    message_send(message, gtkconv);
+    
+    g_free(message);
+
+}
+
+static void
+history_window_destroy(GtkWidget *button, gpointer null)
+{
+    g_free(history_window);
+    history_window = NULL;
+}
+
+static void
+history_window_create(PidginConversation *gtkconv)
 {
     history_window = g_new0(WindowStruct, 1);
 
@@ -152,6 +223,11 @@ history_window_create(void)
     history_window->next = gtk_button_new_with_label("Next");
     history_window->enable = gtk_button_new_with_label("Enable");
     history_window->disable = gtk_button_new_with_label("Disable");
+
+    /*
+    g_signal_connect(G_OBJECT(history_window->show), "clicked",
+	    G_CALLBACK(show_clicked), (gpointer) gtkconv);
+	    */
 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
@@ -185,43 +261,13 @@ history_window_create(void)
 static void
 history_window_open(GtkWidget *button, PidginConversation *gtkconv)
 {
-    gchar *message = NULL;
-
-    PurpleConversation *purple_conv = gtkconv->active_conv;
-    PurpleAccount *acc = purple_conv->account;
-    PurpleConnection *gc = acc->gc;
-
-    char *username= acc->username;
-    char *server = NULL;
-
- // ked uz existuje nerobi nic
+    // ked uz existuje nerobi nic
     if (history_window)
 	return;
 
-    server = get_server_name(username);
+    history_window_create(gtkconv);
 
-    if (server == NULL) {
-	purple_debug_misc(PLUGIN_ID, "history_window_open :: ER server\n");
-	return;
-    }
-
-    if (!gc) {
-	purple_debug_misc(PLUGIN_ID, "history_window_open :: ER gc\n");
-	return;
-    }
-
-    history_window_create();
-
-    message = g_strdup_printf("<iq to='%s' id='xep135%x' type='get'><query xmlns='http://jabber.org/protocol/disco#info'/></iq>",
-	    server, g_random_int());
-    /*
-    <iq to='debian6.sk' id='console3813359' type='get'>
-	<query xmlns='http://jabber.org/protocol/disco#info'/>
-    </iq>
-    */
-    message_send(message, gc);
-    
-    g_free(message);
+    send_disco_info(gtkconv);
 }
 
 static void
