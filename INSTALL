@@ -1,10 +1,9 @@
-works for me with abs https://wiki.archlinux.org/index.php/ABS
-
-download xep136_plugin.c source file
-
-copy it into pidgin-2.10.0/pidgin/plugins/ directory
+download xep136_plugin.c and Makefile
 
 run these commands:
 
-$ make xep136_plugin.so
-$ cp xep136_plugin.so ~/.purple/plugins/
+$ make
+
+$ make install
+
+$ make clean
