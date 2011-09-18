@@ -1,28 +1,14 @@
 #define PURPLE_PLUGINS
 
-/*#include <glib.h>*/
+#include <string.h>
+
 #include <gtk/gtk.h>
-#include <gdk/gdk.h>
 
-#include "connection.h"
-#include "debug.h"
-#include "gtksourceundomanager.h"
-#include "internal.h"
-#include "notify.h"
-#include "plugin.h"
-#include "prpl.h"
-#include "xmlnode.h"
-#include "version.h"
-
-#include <gtkconv.h>
+#include <version.h>
 #include <gtkimhtml.h>
 #include <gtkplugin.h>
-#include <version.h>
 #include "gtkutils.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <debug.h>
 
 #define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
 
@@ -275,7 +261,7 @@ history_window_create(WindowStruct *history_window)
 
     //purple_debug_misc(PLUGIN_ID, "created history_window :: with %s\n", conv->name);
 
-    history_window->window = pidgin_create_window(_("XEP-136 History"), PIDGIN_HIG_BORDER, NULL, TRUE);
+    history_window->window = pidgin_create_window("XEP-136 History", PIDGIN_HIG_BORDER, NULL, TRUE);
     gtk_window_set_default_size(GTK_WINDOW(history_window->window), 400, 350);
 
     g_signal_connect(G_OBJECT(history_window->window), "destroy", 
@@ -521,7 +507,7 @@ static PurplePluginInfo info = {
     PURPLE_MAJOR_VERSION,
     PURPLE_MINOR_VERSION,
     PURPLE_PLUGIN_STANDARD,
-    NULL,
+    PIDGIN_PLUGIN_TYPE,
     0,
     NULL,
     PURPLE_PRIORITY_DEFAULT,
@@ -531,7 +517,7 @@ static PurplePluginInfo info = {
     "0.1",
 
     "XEP-0136 plugin",
-    "XEP-0136 plugin",
+    "Server Message Archiving",
     "Daniel Kraic <danielkraic@gmail.com>",
     "https://github.com/danielkraic/Pidgin-XEP-0136-plugin",
 
