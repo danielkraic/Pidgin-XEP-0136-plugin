@@ -34,6 +34,7 @@ typedef struct _WindowStruct {
     GtkWidget *rightbox;
     GtkWidget *hbox;
     GtkWidget *vbox;
+    GtkWidget *label_username;
     GtkWidget *imhtml;
     GtkWidget *label;
     GtkWidget *entry;
@@ -45,8 +46,15 @@ typedef struct _WindowStruct {
     PidginConversation *gtkconv;
 } WindowStruct;
 
-WindowStruct *history_window = NULL;
+GList *list = NULL;
 
+typedef struct {
+    PidginConversation *gtkconv;
+    gboolean included;
+} Test_struct;
+
+
+#if 0
 char *xmlns = "http://www.xmpp.org/extensions/xep-0136.html#ns";
 
 static void
@@ -85,6 +93,7 @@ xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
     }
 
 }
+#endif
 
 static gchar * 
 get_server_name(PidginConversation *gtkconv)
@@ -129,7 +138,7 @@ message_send(char *message, PidginConversation *gtkconv)
     PurplePluginProtocolInfo *prpl_info = NULL;
 
     if (!gc) {
-	purple_debug_misc(PLUGIN_ID, "history_window_open :: ER gc\n");
+	purple_debug_error(PLUGIN_ID, "ERROR: 'gc' message_send\n");
 	return;
     }
 
@@ -140,6 +149,7 @@ message_send(char *message, PidginConversation *gtkconv)
 	    prpl_info->send_raw(gc, message, strlen(message));
 }
 
+#if 0
 static void
 show_clicked(GtkWidget *button, PidginConversation *gtkconv)
 {
@@ -166,6 +176,7 @@ show_clicked(GtkWidget *button, PidginConversation *gtkconv)
     g_free(message);
 
 }
+#endif
 
 static void
 send_disco_info(PidginConversation *gtkconv)
@@ -174,7 +185,7 @@ send_disco_info(PidginConversation *gtkconv)
     gchar *message = NULL;
 
     if (server == NULL) {
-	purple_debug_misc(PLUGIN_ID, "history_window_open :: ER server\n");
+	purple_debug_error(PLUGIN_ID, "ERROR: 'server' send_disco_info \n");
 	return;
     }
 
@@ -192,24 +203,29 @@ send_disco_info(PidginConversation *gtkconv)
 }
 
 static void
-history_window_destroy(GtkWidget *button, gpointer null)
+history_window_destroy(GtkWidget *window, WindowStruct *curr)
 {
-    g_free(history_window);
-    history_window = NULL;
+    list = g_list_remove(list, curr);
+    g_free(curr);
 }
 
 static void
-history_window_create(PidginConversation *gtkconv)
+history_window_create(WindowStruct *history_window)
 {
-    history_window = g_new0(WindowStruct, 1);
+    //history_window = g_new0(WindowStruct, 1);
+    PidginConversation *gtkconv = history_window->gtkconv;
+    PurpleConversation *conv = gtkconv->active_conv;
+
+    purple_debug_misc(PLUGIN_ID, "created history_window :: with %s\n", conv->name);
 
     history_window->window = pidgin_create_window(_("XEP-136 History"), PIDGIN_HIG_BORDER, NULL, TRUE);
     gtk_window_set_default_size(GTK_WINDOW(history_window->window), 400, 350);
 
     g_signal_connect(G_OBJECT(history_window->window), "destroy", 
-	    G_CALLBACK(history_window_destroy), NULL);
+	    G_CALLBACK(history_window_destroy), (gpointer) history_window );
 
     history_window->imhtml = gtk_imhtml_new(NULL, NULL);
+    history_window->label_username = gtk_label_new(conv->name);
     history_window->label = gtk_label_new("Search ");
     history_window->entry = gtk_entry_new();
     history_window->button = gtk_button_new_from_stock(GTK_STOCK_FIND);
@@ -219,8 +235,10 @@ history_window_create(PidginConversation *gtkconv)
     history_window->enable = gtk_button_new_with_label("Enable");
     history_window->disable = gtk_button_new_with_label("Disable");
 
+    /*
     g_signal_connect(G_OBJECT(history_window->show), "clicked",
 	    G_CALLBACK(show_clicked), (gpointer) gtkconv);
+	    */
 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
@@ -231,6 +249,7 @@ history_window_create(PidginConversation *gtkconv)
     gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->vbox, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->rightbox, FALSE, FALSE, 0);
 
+    gtk_box_pack_start(GTK_BOX(history_window->vbox), history_window->label_username, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->vbox), 
 		pidgin_make_scrollable(history_window->imhtml, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC, GTK_SHADOW_ETCHED_IN, -1, -1),
 		TRUE, TRUE, 0);
@@ -252,21 +271,82 @@ history_window_create(PidginConversation *gtkconv)
 }
 
 static void
-history_window_open(GtkWidget *button, PidginConversation *gtkconv)
+history_window_open(PidginConversation *gtkconv)
 {
-    // ked uz existuje nerobi nic
-    if (history_window)
-	return;
+    WindowStruct *new = g_malloc0(sizeof(WindowStruct));
 
-    history_window_create(gtkconv);
+    if (!new) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new WindowStruct\n");
+	return;
+    }
+
+    new->gtkconv = gtkconv;
+    history_window_create(new);
+
+    list = g_list_prepend(list, new);
 
     send_disco_info(gtkconv);
+}
+
+static void
+history_window_exist_test(WindowStruct *curr, Test_struct *test)
+{
+    if (curr->gtkconv == test->gtkconv)
+	test->included = TRUE;
+}
+
+static void
+history_button_clicked(GtkWidget *button, PidginConversation *gtkconv)
+{
+    Test_struct *test = g_malloc0(sizeof(Test_struct));
+
+    test->gtkconv = gtkconv;
+    test->included = FALSE;
+
+    g_list_foreach(list, (GFunc) history_window_exist_test, (gpointer) test);
+
+    if (test->included == TRUE) {
+	g_free(test);
+	purple_debug_misc(PLUGIN_ID, "test included :: TRUE\n");
+	return;
+    }
+
+    g_free(test);
+
+    purple_debug_misc(PLUGIN_ID, "test included :: FALSE\n");
+
+    history_window_open(gtkconv);
+}
+
+static gboolean
+if_jabber(PidginConversation *gtkconv)
+{
+    PurpleConversation *conv = gtkconv->active_conv;
+    PurpleAccount *acc = conv->account;
+    char *jabber_id = "prpl-jabber";
+
+    if(!acc) {
+	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: ERROR acc\n");
+	return FALSE;
+    }
+
+    // test jabber conversation
+    if (g_strcmp0(jabber_id, purple_account_get_protocol_id(acc))) {
+	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: TRUE\n");
+	return TRUE;
+    } else {
+	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: FALSE\n");
+	return FALSE;
+    }
 }
 
 static void
 detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
     GtkWidget *toolbar_box, *hbox;
+
+    if (if_jabber(gtkconv))
+	return;
 
     toolbar_box = gtkconv->toolbar;
 
@@ -283,12 +363,15 @@ attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
     GtkWidget *toolbar_box, *hbox, *button;
 
+    if (if_jabber(gtkconv))
+	return;
+
     toolbar_box = gtkconv->toolbar;
 
     button = gtk_button_new_with_label("History");
 
     g_signal_connect(G_OBJECT(button), "clicked",
-	    G_CALLBACK(history_window_open), (gpointer) gtkconv);
+	    G_CALLBACK(history_button_clicked), (gpointer) gtkconv);
 
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
@@ -341,6 +424,7 @@ plugin_load(PurplePlugin *plugin)
     PurplePlugin *jabber;
 
     xep136 = plugin;
+    
     attach_to_all_windows();
 
     purple_signal_connect(purple_conversations_get_handle(), "conversation-created", plugin, 
@@ -350,17 +434,27 @@ plugin_load(PurplePlugin *plugin)
     if (!jabber)
 	    return FALSE;
 
+    /*
     purple_signal_connect(jabber, "jabber-receiving-xmlnode", xep136,
 	    PURPLE_CALLBACK(xmlnode_received), NULL);
+	    */
 
     return TRUE;
+}
+
+static void
+destroy_windows(WindowStruct *curr)
+{
+    gtk_widget_destroy(curr->window);
 }
 
 static gboolean
 plugin_unload(PurplePlugin *plugin)
 {
-    if (history_window)
-	gtk_widget_destroy(history_window->window);
+    g_list_foreach(list, (GFunc) destroy_windows, NULL);
+
+    g_list_free(list);
+    list = NULL;
 
     detach_from_all_windows();
 
@@ -378,11 +472,11 @@ static PurplePluginInfo info = {
     PURPLE_PRIORITY_DEFAULT,
 
     PLUGIN_ID,
-    "XEP-136 plugin",
+    "XEP-0136 plugin",
     "1.5",
 
-    "XEP-136 plugin",
-    "XEP-136 plugin",
+    "XEP-0136 plugin",
+    "XEP-0136 plugin",
     "Daniel Kraic <danielkraic@gmail.com>",
     "https://github.com/danielkraic/Pidgin-XEP-0136-plugin",
 
