@@ -43,7 +43,6 @@ typedef struct {
 typedef struct _Recipient_info {
     PurpleConnection *gc;
     xmlnode *xml;
-    char *name;
 } Recipient_info;
 
 char *xmlns = "http://www.xmpp.org/extensions/xep-0136.html#ns";
@@ -64,20 +63,36 @@ get_my_username(WindowStruct *curr)
 static void
 iq_list(WindowStruct *curr, xmlnode *xml)
 {
-    //TODO
-#if 0
     xmlnode *c = NULL;
+    xmlnode *d = NULL;
+
     for (c = xml->child; c; c = c->next) {
-	if ( (strcmp(c->name, "feature") == 0) && (strcmp( (c->child)->name, "var" ) == 0) ) {
-	    if (strcmp(( c->child)->data, xmlns) == 0) {
-		gtk_widget_set_sensitive(curr->rightbox, TRUE);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported!", 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
-		return;
+	if (strcmp(c->name, "chat") == 0) {
+	    for (d = c->child; d; d = d->next) {
+		if (strcmp(d->name, "start") == 0) {
+		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), d->data, 0);
+		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		}
 	    }
 	}
     }
-#endif
+
+/*
+<iq from='daniel@debian6.sk' to='daniel@debian6.sk/doma' id='xep13514dd0eaf' type='result'>
+	<list xmlns='http://www.xmpp.org/extensions/xep-0136.html#ns'>
+		<chat with='denko@debian6.sk/Gajim' start='2011-04-11T16:57:21.000000Z'/>
+		<chat with='denko@debian6.sk' start='2011-09-13T19:02:54.000000Z'/>
+		<chat with='denko@debian6.sk/Gajim' start='2011-09-13T19:03:04.000000Z'/>
+		<set xmlns='http://jabber.org/protocol/rsm'>
+			<first index='0'>63469760241@1</first>
+			<last>63483159784@62</last>
+			<changed>2011-09-13T19:03:07.000000Z</changed>
+			<count>31</count>
+		</set>
+	</list>
+</iq>
+*/
+
 }
 
 static void
@@ -218,14 +233,14 @@ message_send(char *message, PidginConversation *gtkconv)
 	    prpl_info->send_raw(gc, message, strlen(message));
 }
 
-#if 0
 static void
 show_clicked(GtkWidget *button, PidginConversation *gtkconv)
 {
     gchar *message = NULL;
 
-    //TODO function to get username
-    char *with = "denko@debian6.sk";
+    PurpleConversation *purple_conv = gtkconv->active_conv;
+    //char *with = "denko@debian6.sk";
+    char *with = purple_conv->name;
     
 /*
 <iq id='console88bd5fdc' type='get'>
@@ -245,7 +260,6 @@ show_clicked(GtkWidget *button, PidginConversation *gtkconv)
     g_free(message);
 
 }
-#endif
 
 static void
 send_disco_info(PidginConversation *gtkconv)
@@ -304,10 +318,8 @@ history_window_create(WindowStruct *history_window)
     history_window->enable = gtk_button_new_with_label("Enable");
     history_window->disable = gtk_button_new_with_label("Disable");
 
-    /*
     g_signal_connect(G_OBJECT(history_window->show), "clicked",
-	    G_CALLBACK(show_clicked), (gpointer) gtkconv);
-	    */
+	    G_CALLBACK(show_clicked), (gpointer) history_window->gtkconv);
 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
