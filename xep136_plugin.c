@@ -53,6 +53,11 @@ typedef struct {
     gboolean included;
 } Test_struct;
 
+typedef struct _Recipient_info {
+    PurpleConnection *gc;
+    xmlnode *xml;
+    char *name;
+} Recipient_info;
 
 #if 0
 char *xmlns = "http://www.xmpp.org/extensions/xep-0136.html#ns";
@@ -78,29 +83,81 @@ received_iq(xmlnode *xml)
 	}
     }
 }
+#endif
+
+static char *
+get_my_username(WindowStruct *curr)
+{
+    PidginConversation *gtkconv = curr->gtkconv;
+    PurpleConversation *purple_conv = gtkconv->active_conv;
+    PurpleAccount *acc = purple_conv->account;
+
+    if (!acc)
+	return "ERROR";
+
+    return acc->username;
+}
+
+static void
+explore_xml(WindowStruct *curr, xmlnode *xml)
+{
+    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: \n");
+    //TODO
+}
+
+static void
+find_recipient(WindowStruct *curr, Recipient_info *recipient)
+{
+    PidginConversation *gtkconv = curr->gtkconv;
+    PurpleConversation *purple_conv = gtkconv->active_conv;
+    PurpleAccount *acc = purple_conv->account;
+    PurpleConnection *gc = acc->gc;
+
+    if (!gc) {
+	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: gc ERR\n");
+	return;
+    }
+
+    if (gc == recipient->gc) {
+	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: gc match for %s\n", get_my_username(curr));
+    	explore_xml(curr, recipient->xml);
+    }
+}
 
 static void
 xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
 {
     xmlnode *xml = *packet;
+    Recipient_info *recipient = NULL; 
 
-    // check if there is a connection?
-    if (!history_window /*|| console->gc != gc*/)
+    if (list == NULL) {
+	purple_debug_misc(PLUGIN_ID, "XMLNODE_RECEIVED :: empty list\n");
 	return;
-
-    if (strcmp(xml->name, "iq") == 0) {
-	received_iq(xml);
     }
 
+    recipient = g_malloc0(sizeof(Recipient_info));
+
+    if (!recipient) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new Recipient_info\n");
+	return;
+    }
+
+    recipient->gc = gc;
+    recipient->xml = xml;
+
+    if (strcmp(xml->name, "iq") == 0) {
+	//purple_debug_misc(PLUGIN_ID, "XMLNODE_RECEIVED :: received iq\n");
+	g_list_foreach(list, (GFunc) find_recipient, (gpointer) recipient);
+    }
+
+    g_free(recipient);
 }
-#endif
 
 static gchar * 
 get_server_name(PidginConversation *gtkconv)
 {
     PurpleConversation *purple_conv = gtkconv->active_conv;
     PurpleAccount *acc = purple_conv->account;
-
     char *username= acc->username;
 
     gchar *server = NULL;
@@ -216,7 +273,7 @@ history_window_create(WindowStruct *history_window)
     PidginConversation *gtkconv = history_window->gtkconv;
     PurpleConversation *conv = gtkconv->active_conv;
 
-    purple_debug_misc(PLUGIN_ID, "created history_window :: with %s\n", conv->name);
+    //purple_debug_misc(PLUGIN_ID, "created history_window :: with %s\n", conv->name);
 
     history_window->window = pidgin_create_window(_("XEP-136 History"), PIDGIN_HIG_BORDER, NULL, TRUE);
     gtk_window_set_default_size(GTK_WINDOW(history_window->window), 400, 350);
@@ -307,13 +364,13 @@ history_button_clicked(GtkWidget *button, PidginConversation *gtkconv)
 
     if (test->included == TRUE) {
 	g_free(test);
-	purple_debug_misc(PLUGIN_ID, "test included :: TRUE\n");
+	//purple_debug_misc(PLUGIN_ID, "test included :: TRUE\n");
 	return;
     }
 
     g_free(test);
 
-    purple_debug_misc(PLUGIN_ID, "test included :: FALSE\n");
+    //purple_debug_misc(PLUGIN_ID, "test included :: FALSE\n");
 
     history_window_open(gtkconv);
 }
@@ -332,10 +389,10 @@ if_jabber(PidginConversation *gtkconv)
 
     // test jabber conversation
     if (g_strcmp0(jabber_id, purple_account_get_protocol_id(acc))) {
-	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: TRUE\n");
+	//purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: TRUE\n");
 	return TRUE;
     } else {
-	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: FALSE\n");
+	//purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: FALSE\n");
 	return FALSE;
     }
 }
@@ -434,10 +491,8 @@ plugin_load(PurplePlugin *plugin)
     if (!jabber)
 	    return FALSE;
 
-    /*
     purple_signal_connect(jabber, "jabber-receiving-xmlnode", xep136,
 	    PURPLE_CALLBACK(xmlnode_received), NULL);
-	    */
 
     return TRUE;
 }
@@ -473,7 +528,7 @@ static PurplePluginInfo info = {
 
     PLUGIN_ID,
     "XEP-0136 plugin",
-    "1.5",
+    "0.1",
 
     "XEP-0136 plugin",
     "XEP-0136 plugin",
