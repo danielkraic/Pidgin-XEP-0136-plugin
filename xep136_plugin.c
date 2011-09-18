@@ -7,8 +7,9 @@
 #include <version.h>
 #include <gtkimhtml.h>
 #include <gtkplugin.h>
-#include "gtkutils.h"
 #include <debug.h>
+
+#include "gtkutils.h"
 
 #define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
 
@@ -45,31 +46,7 @@ typedef struct _Recipient_info {
     char *name;
 } Recipient_info;
 
-#if 0
 char *xmlns = "http://www.xmpp.org/extensions/xep-0136.html#ns";
-
-static void
-received_iq(xmlnode *xml)
-{
-    xmlnode *c = NULL;
-    xmlnode *d = NULL;
-
-    for (c = xml->child; c; c = c->next) {
-	if (strcmp(c->name, "query") == 0) {
-	    for (d = c->child; d; d = d->next) {
-		if ( (strcmp(d->name, "feature") == 0) && (strcmp( (d->child)->name, "var" ) == 0) ) {
-		    if (strcmp(( d->child)->data, xmlns) == 0) {
-			gtk_widget_set_sensitive(history_window->rightbox, TRUE);
-			gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "XEP-0136 supported!", 0);
-			gtk_imhtml_append_text(GTK_IMHTML(history_window->imhtml), "<br>", 0);
-			return;
-		    }
-		}
-	    }
-	}
-    }
-}
-#endif
 
 static char *
 get_my_username(WindowStruct *curr)
@@ -85,10 +62,59 @@ get_my_username(WindowStruct *curr)
 }
 
 static void
+iq_list(WindowStruct *curr, xmlnode *xml)
+{
+    //TODO
+#if 0
+    xmlnode *c = NULL;
+    for (c = xml->child; c; c = c->next) {
+	if ( (strcmp(c->name, "feature") == 0) && (strcmp( (c->child)->name, "var" ) == 0) ) {
+	    if (strcmp(( c->child)->data, xmlns) == 0) {
+		gtk_widget_set_sensitive(curr->rightbox, TRUE);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported!", 0);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		return;
+	    }
+	}
+    }
+#endif
+}
+
+static void
+iq_query(WindowStruct *curr, xmlnode *xml)
+{
+    xmlnode *c = NULL;
+
+    for (c = xml->child; c; c = c->next) {
+	if ( (strcmp(c->name, "feature") == 0) && (strcmp( (c->child)->name, "var" ) == 0) ) {
+	    if (strcmp(( c->child)->data, xmlns) == 0) {
+		gtk_widget_set_sensitive(curr->rightbox, TRUE);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported!", 0);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		return;
+	    }
+	}
+    }
+}
+
+static void
 explore_xml(WindowStruct *curr, xmlnode *xml)
 {
+    xmlnode *c = NULL;
+    xmlnode *d = NULL;
+
     purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: \n");
-    //TODO
+
+    for (c = xml->child; c; c = c->next) {
+
+	if (strcmp(c->name, "query") == 0) {
+	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_query\n");
+	    iq_query(curr, c);
+	} else if (strcmp(c->name, "list") == 0) {
+	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_list\n");
+	    iq_list(curr, c);
+	}
+    }
 }
 
 static void
