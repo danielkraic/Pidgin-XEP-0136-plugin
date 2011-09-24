@@ -148,6 +148,7 @@ retrieve_collection(WindowStruct *curr, char *start)
 static void
 iq_list(WindowStruct *curr, xmlnode *xml)
 {
+    GtkTreeIter iter;
     xmlnode *c = NULL;
     xmlnode *d = NULL;
 
@@ -161,9 +162,12 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 		    }
 		    //purple_debug_misc(PLUGIN_ID, "retrieve_collection :: %s\n", d->data);
 		    //retrieve_collection(curr, d->data);
-		    
-		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), d->data, 0);
-		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+
+		    gtk_tree_store_append(curr->treestore, &iter, NULL);
+		    gtk_tree_store_set(curr->treestore, &iter, 0, d->data, -1);
+
+		    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), d->data, 0);
+		    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
 		}
 	    }
 	}
@@ -331,6 +335,27 @@ history_window_destroy(GtkWidget *window, WindowStruct *curr)
 }
 
 static void
+create_left_list(WindowStruct *history_window)
+{
+    GtkCellRenderer *rend;
+    GtkTreeViewColumn *col;
+
+    history_window->treestore = gtk_tree_store_new (1, G_TYPE_STRING);
+    history_window->treeview = gtk_tree_view_new_with_model (GTK_TREE_MODEL (history_window->treestore));
+    g_object_unref(G_OBJECT(history_window->treestore));
+
+    rend = gtk_cell_renderer_text_new();
+    col = gtk_tree_view_column_new_with_attributes ("Date", rend, "text", 0, NULL);
+    gtk_tree_view_append_column (GTK_TREE_VIEW(history_window->treeview), col);
+    gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (history_window->treeview), FALSE);
+
+    history_window->left = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->left),
+	    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(history_window->left), history_window->treeview);
+}
+
+static void
 history_window_create(WindowStruct *history_window)
 {
     //history_window = g_new0(WindowStruct, 1);
@@ -338,50 +363,46 @@ history_window_create(WindowStruct *history_window)
     PurpleConversation *conv = gtkconv->active_conv;
 
     history_window->window = pidgin_create_window("XEP-136 History", PIDGIN_HIG_BORDER, NULL, TRUE);
-    gtk_window_set_default_size(GTK_WINDOW(history_window->window), 400, 350);
+    gtk_window_set_default_size(GTK_WINDOW(history_window->window), 600, 350);
 
     g_signal_connect(G_OBJECT(history_window->window), "destroy", 
 	    G_CALLBACK(history_window_destroy), (gpointer) history_window );
 
-    history_window->imhtml = gtk_imhtml_new(NULL, NULL);
-    history_window->label_username = gtk_label_new(conv->name);
-    history_window->label = gtk_label_new("Search ");
-    history_window->entry = gtk_entry_new();
-    history_window->button = gtk_button_new_from_stock(GTK_STOCK_FIND);
+    //left
+    create_left_list(history_window);
 
+    //center
+    history_window->label_username = gtk_label_new(conv->name);
+    history_window->imhtml = gtk_imhtml_new(NULL, NULL);
+
+    //right
     history_window->show = gtk_button_new_with_label("Show");
-    history_window->next = gtk_button_new_with_label("Next");
     history_window->enable = gtk_button_new_with_label("Enable");
     history_window->disable = gtk_button_new_with_label("Disable");
-
     g_signal_connect(G_OBJECT(history_window->show), "clicked",
 	    G_CALLBACK(show_clicked), (gpointer) history_window);
 
+    //boxing 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
+    history_window->center= gtk_vbox_new(FALSE, 3);
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
 
-    history_window->hbox = gtk_hbox_new(FALSE, 3);
-    history_window->vbox = gtk_vbox_new(FALSE, 3);
+    //boxing center 
+    gtk_box_pack_start(GTK_BOX(history_window->center), history_window->label_username, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->center), 
+	    pidgin_make_scrollable(history_window->imhtml, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC, GTK_SHADOW_ETCHED_IN, -1, -1), 
+	    TRUE, TRUE, 0);
 
-    gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->vbox, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->rightbox, FALSE, FALSE, 0);
-
-    gtk_box_pack_start(GTK_BOX(history_window->vbox), history_window->label_username, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->vbox), 
-		pidgin_make_scrollable(history_window->imhtml, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC, GTK_SHADOW_ETCHED_IN, -1, -1),
-		TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->vbox), history_window->hbox, FALSE, FALSE, 0);
-
-    gtk_box_pack_start(GTK_BOX(history_window->hbox), history_window->label, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->hbox), history_window->entry, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->hbox), history_window->button, FALSE, FALSE, 0);
-
+    //boxing right
     gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->show, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->next, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->enable, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->disable, FALSE, FALSE, 0);
-
     gtk_widget_set_sensitive(history_window->rightbox, FALSE);
+
+    //boxing main
+    gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->left, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->center, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->rightbox, FALSE, FALSE, 0);
 
     gtk_container_add(GTK_CONTAINER(history_window->window), history_window->mainbox);
     gtk_widget_show_all(history_window->window);

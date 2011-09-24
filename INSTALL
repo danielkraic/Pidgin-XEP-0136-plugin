@@ -1,4 +1,4 @@
-download xep136_plugin.c and Makefile
+download xep136_plugin.h, xep136_plugin.c and Makefile
 
 run these commands:
 

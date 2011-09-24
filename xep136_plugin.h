@@ -2,19 +2,27 @@
 
 typedef struct _WindowStruct {
     GtkWidget *window;
+
     GtkWidget *mainbox;
+
+    GtkWidget *left;
+    GtkWidget *center;
     GtkWidget *rightbox;
-    GtkWidget *hbox;
-    GtkWidget *vbox;
+
+    //center
     GtkWidget *label_username;
     GtkWidget *imhtml;
-    GtkWidget *label;
-    GtkWidget *entry;
-    GtkWidget *button;
+    
+    //right
     GtkWidget *show;
-    GtkWidget *next;
     GtkWidget *enable;
     GtkWidget *disable;
+
+    //left
+    GtkTreeStore *treestore;
+    GtkWidget *treeview;
+
+    //conversation
     PidginConversation *gtkconv;
     char *xmlns;
 } WindowStruct;
@@ -50,6 +58,7 @@ static void send_disco_info(PidginConversation *gtkconv);
 
 /* GTK create, destroy, history window */
 static void history_window_destroy(GtkWidget *window, WindowStruct *curr);
+static void create_left_list(WindowStruct *history_window);
 static void history_window_create(WindowStruct *history_window);
 static void history_window_open(PidginConversation *gtkconv);
 static void history_window_exist_test(WindowStruct *curr, Test_struct *test);
