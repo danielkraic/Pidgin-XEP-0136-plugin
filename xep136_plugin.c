@@ -1,184 +1,46 @@
+/* xep136_plugin.c */
+
 #define PURPLE_PLUGINS
+#define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
 
 #include <string.h>
-
 #include <gtk/gtk.h>
-
 #include <version.h>
 #include <gtkimhtml.h>
 #include <gtkplugin.h>
 #include <debug.h>
-
 #include "gtkutils.h"
 
-#define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
+#include "xep136_plugin.h"
 
 static PurplePlugin *xep136 = NULL;
+static GList *list = NULL;
+static char *xmlns_ejabberd = "http://www.xmpp.org/extensions/xep-0136.html#ns";
+static char *xmlns_prosody = "urn:xmpp:archive";
 
-typedef struct _WindowStruct {
-    GtkWidget *window;
-    GtkWidget *mainbox;
-    GtkWidget *rightbox;
-    GtkWidget *hbox;
-    GtkWidget *vbox;
-    GtkWidget *label_username;
-    GtkWidget *imhtml;
-    GtkWidget *label;
-    GtkWidget *entry;
-    GtkWidget *button;
-    GtkWidget *show;
-    GtkWidget *next;
-    GtkWidget *enable;
-    GtkWidget *disable;
-    PidginConversation *gtkconv;
-} WindowStruct;
+/*--------------------------------------------------------------------------------
+ * misc functions, get_server_name, find_recipient
+ *--------------------------------------------------------------------------------*/
 
-GList *list = NULL;
-
-typedef struct {
-    PidginConversation *gtkconv;
-    gboolean included;
-} Test_struct;
-
-typedef struct _Recipient_info {
-    PurpleConnection *gc;
-    xmlnode *xml;
-} Recipient_info;
-
-char *xmlns = "http://www.xmpp.org/extensions/xep-0136.html#ns";
-
+/*
 static char *
 get_my_username(WindowStruct *curr)
 {
     PidginConversation *gtkconv = curr->gtkconv;
     PurpleConversation *purple_conv = gtkconv->active_conv;
     PurpleAccount *acc = purple_conv->account;
+    char *my_username = NULL; 
 
-    if (!acc)
-	return "ERROR";
-
-    return acc->username;
-}
-
-static void
-iq_list(WindowStruct *curr, xmlnode *xml)
-{
-    xmlnode *c = NULL;
-    xmlnode *d = NULL;
-
-    for (c = xml->child; c; c = c->next) {
-	if (strcmp(c->name, "chat") == 0) {
-	    for (d = c->child; d; d = d->next) {
-		if (strcmp(d->name, "start") == 0) {
-		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), d->data, 0);
-		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
-		}
-	    }
-	}
+    if (!acc) {
+	purple_debug_error(PLUGIN_ID, "ERROR: 'get_my_username': !acc\n");
+	return;
     }
 
-/*
-<iq from='daniel@debian6.sk' to='daniel@debian6.sk/doma' id='xep13514dd0eaf' type='result'>
-	<list xmlns='http://www.xmpp.org/extensions/xep-0136.html#ns'>
-		<chat with='denko@debian6.sk/Gajim' start='2011-04-11T16:57:21.000000Z'/>
-		<chat with='denko@debian6.sk' start='2011-09-13T19:02:54.000000Z'/>
-		<chat with='denko@debian6.sk/Gajim' start='2011-09-13T19:03:04.000000Z'/>
-		<set xmlns='http://jabber.org/protocol/rsm'>
-			<first index='0'>63469760241@1</first>
-			<last>63483159784@62</last>
-			<changed>2011-09-13T19:03:07.000000Z</changed>
-			<count>31</count>
-		</set>
-	</list>
-</iq>
+    my_username = acc->username;
+
+    return my_username;
+}
 */
-
-}
-
-static void
-iq_query(WindowStruct *curr, xmlnode *xml)
-{
-    xmlnode *c = NULL;
-
-    for (c = xml->child; c; c = c->next) {
-	if ( (strcmp(c->name, "feature") == 0) && (strcmp( (c->child)->name, "var" ) == 0) ) {
-	    if (strcmp(( c->child)->data, xmlns) == 0) {
-		gtk_widget_set_sensitive(curr->rightbox, TRUE);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported!", 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
-		return;
-	    }
-	}
-    }
-}
-
-static void
-explore_xml(WindowStruct *curr, xmlnode *xml)
-{
-    xmlnode *c = NULL;
-    xmlnode *d = NULL;
-
-    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: \n");
-
-    for (c = xml->child; c; c = c->next) {
-
-	if (strcmp(c->name, "query") == 0) {
-	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_query\n");
-	    iq_query(curr, c);
-	} else if (strcmp(c->name, "list") == 0) {
-	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_list\n");
-	    iq_list(curr, c);
-	}
-    }
-}
-
-static void
-find_recipient(WindowStruct *curr, Recipient_info *recipient)
-{
-    PidginConversation *gtkconv = curr->gtkconv;
-    PurpleConversation *purple_conv = gtkconv->active_conv;
-    PurpleAccount *acc = purple_conv->account;
-    PurpleConnection *gc = acc->gc;
-
-    if (!gc) {
-	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: gc ERR\n");
-	return;
-    }
-
-    if (gc == recipient->gc) {
-	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: gc match for %s\n", get_my_username(curr));
-    	explore_xml(curr, recipient->xml);
-    }
-}
-
-static void
-xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
-{
-    xmlnode *xml = *packet;
-    Recipient_info *recipient = NULL; 
-
-    if (list == NULL) {
-	purple_debug_misc(PLUGIN_ID, "XMLNODE_RECEIVED :: empty list\n");
-	return;
-    }
-
-    recipient = g_malloc0(sizeof(Recipient_info));
-
-    if (!recipient) {
-	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new Recipient_info\n");
-	return;
-    }
-
-    recipient->gc = gc;
-    recipient->xml = xml;
-
-    if (strcmp(xml->name, "iq") == 0) {
-	//purple_debug_misc(PLUGIN_ID, "XMLNODE_RECEIVED :: received iq\n");
-	g_list_foreach(list, (GFunc) find_recipient, (gpointer) recipient);
-    }
-
-    g_free(recipient);
-}
 
 static gchar * 
 get_server_name(PidginConversation *gtkconv)
@@ -211,6 +73,192 @@ get_server_name(PidginConversation *gtkconv)
 
     return server;
 }
+
+static void
+find_recipient(WindowStruct *curr, Recipient_info *recipient)
+{
+    PidginConversation *gtkconv = NULL;
+    PurpleConversation *purple_conv = NULL;
+    PurpleAccount *acc = NULL;
+    PurpleConnection *gc = NULL;
+
+    if (recipient->match == TRUE)
+	return;
+
+    gtkconv = curr->gtkconv;
+    if (!gtkconv) {
+	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: ERR gtkconv\n");
+	return;
+    }
+
+    purple_conv = gtkconv->active_conv;
+    if (!purple_conv) {
+	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: ERR purple_conv\n");
+	return;
+    }
+
+    acc = purple_conv->account;
+    if (!acc) {
+	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: ERR acc\n");
+	return;
+    }
+
+    gc = acc->gc;
+    if (!gc) {
+	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: ERR gc\n");
+	return;
+    }
+
+    if (gc == recipient->gc) {
+	//purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: gc match for %s\n", get_my_username(curr));
+	recipient->match = TRUE;
+    	explore_xml(curr, recipient->xml);
+    }
+}
+
+/*------------------------------------------------------------
+ * receive and explore received xmlnode, iq_list, iq_query
+ *------------------------------------------------------------*/
+
+/*
+static void
+retrieve_collection(WindowStruct *curr, char *start)
+//show_clicked(GtkWidget *button, PidginConversation *gtkconv)
+{
+    gchar *message = NULL;
+
+    PurpleConversation *purple_conv = (curr->gtkconv)->active_conv;
+    //char *with = "denko@debian6.sk";
+    char *with = purple_conv->name;
+    
+    if (!purple_conv) {
+	purple_debug_error(PLUGIN_ID, "ERROR: 'purple_conv' retrieve_collection\n");
+	return;
+    }
+    
+    message = g_strdup_printf("<iq id='xep135%x' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", g_random_int(), curr->xmlns, with, start);
+
+    //purple_debug_misc(PLUGIN_ID, "history_window_open :: %s\n", message);
+    message_send(message, curr->gtkconv);
+    
+    g_free(message);
+}
+*/
+
+static void
+iq_list(WindowStruct *curr, xmlnode *xml)
+{
+    xmlnode *c = NULL;
+    xmlnode *d = NULL;
+
+    for (c = xml->child; c; c = c->next) {
+	if (strcmp(c->name, "chat") == 0) {
+	    for (d = c->child; d; d = d->next) {
+		if (strcmp(d->name, "start") == 0) {
+		    if (!(d->data)) {
+			purple_debug_error(PLUGIN_ID, "ERROR: iq_list :: d->data\n");
+			return;
+		    }
+		    //purple_debug_misc(PLUGIN_ID, "retrieve_collection :: %s\n", d->data);
+		    //retrieve_collection(curr, d->data);
+		    
+		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), d->data, 0);
+		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		}
+	    }
+	}
+    }
+}
+
+static void
+iq_query(WindowStruct *curr, xmlnode *xml)
+{
+    xmlnode *c = NULL;
+
+    for (c = xml->child; c; c = c->next) {
+	if ( (strcmp(c->name, "feature") == 0) && (strcmp( (c->child)->name, "var" ) == 0) ) {
+	    if (strcmp(( c->child)->data, xmlns_prosody) == 0) {
+
+		purple_debug_misc(PLUGIN_ID, "disco :: PROSODY\n");
+		curr->xmlns = xmlns_prosody;
+
+		gtk_widget_set_sensitive(curr->rightbox, TRUE);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported!", 0);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+
+		return;
+
+	    } else if (strcmp(( c->child)->data, xmlns_ejabberd) == 0) {
+
+		purple_debug_misc(PLUGIN_ID, "disco :: EJABBERD\n");
+		curr->xmlns = xmlns_ejabberd;	
+
+		gtk_widget_set_sensitive(curr->rightbox, TRUE);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported!", 0);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+
+		return;
+	    }
+	}
+    }
+}
+
+static void
+explore_xml(WindowStruct *curr, xmlnode *xml)
+{
+    xmlnode *c = NULL;
+
+    if (!curr || !xml) {
+	purple_debug_error(PLUGIN_ID, "ERROR: 'explore_xml': !curr || !xlm\n");
+	return;
+    }
+
+    for (c = xml->child; c; c = c->next) {
+
+	if (strcmp(c->name, "query") == 0) {
+	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_query\n");
+	    iq_query(curr, c);
+	} else if (strcmp(c->name, "list") == 0) {
+	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_list\n");
+	    iq_list(curr, c);
+	}
+    }
+}
+
+
+static void
+xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
+{
+    xmlnode *xml = *packet;
+    Recipient_info *recipient = NULL; 
+
+    if (list == NULL) {
+	purple_debug_misc(PLUGIN_ID, "XMLNODE_RECEIVED :: empty list\n");
+	return;
+    }
+
+    recipient = g_malloc0(sizeof(Recipient_info));
+
+    if (!recipient) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new Recipient_info\n");
+	return;
+    }
+
+    recipient->gc = gc;
+    recipient->xml = xml;
+    recipient->match = FALSE;
+
+    if (strcmp(xml->name, "iq") == 0) {
+	//purple_debug_misc(PLUGIN_ID, "XMLNODE_RECEIVED :: received iq\n");
+	g_list_foreach(list, (GFunc) find_recipient, (gpointer) recipient);
+    }
+
+    g_free(recipient);
+}
+
+/*------------------------------------------------------------
+ * send message, service discovery, list collections
+ *------------------------------------------------------------*/
     
 static void
 message_send(char *message, PidginConversation *gtkconv)
@@ -234,28 +282,18 @@ message_send(char *message, PidginConversation *gtkconv)
 }
 
 static void
-show_clicked(GtkWidget *button, PidginConversation *gtkconv)
+show_clicked(GtkWidget *button, WindowStruct *curr)
 {
-    gchar *message = NULL;
-
+    PidginConversation *gtkconv = curr->gtkconv;
     PurpleConversation *purple_conv = gtkconv->active_conv;
-    //char *with = "denko@debian6.sk";
     char *with = purple_conv->name;
+    gchar *message = NULL;
     
-/*
-<iq id='console88bd5fdc' type='get'>
-	<list xmlns='http://www.xmpp.org/extensions/xep-0136.html#ns' with='denko@debian6.sk'>
-		<set xmlns='http://jabber.org/protocol/rsm'>
-			<max>100</max>
-		</set>
-	</list>
-</iq>
-*/
-    
-    message = g_strdup_printf("<iq id='xep135%x' type='get'><list xmlns='http://www.xmpp.org/extensions/xep-0136.html#ns' with='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", g_random_int(), with);
+    message = g_strdup_printf("<iq id='xep135%x' type='get'><list xmlns='%s' with='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", 
+	    g_random_int(), curr->xmlns, with);
 
     //purple_debug_misc(PLUGIN_ID, "history_window_open :: %s\n", message);
-    message_send(message, gtkconv);
+    message_send(message, curr->gtkconv);
     
     g_free(message);
 
@@ -274,16 +312,16 @@ send_disco_info(PidginConversation *gtkconv)
 
     message = g_strdup_printf("<iq to='%s' id='xep135%x' type='get'><query xmlns='http://jabber.org/protocol/disco#info'/></iq>",
 	    server, g_random_int());
-    /*
-    <iq to='debian6.sk' id='console3813359' type='get'>
-	<query xmlns='http://jabber.org/protocol/disco#info'/>
-    </iq>
-    */
+
     message_send(message, gtkconv);
     
     g_free(message);
 
 }
+
+/*------------------------------------------------------------
+ * GTK create, destroy, history window
+ *------------------------------------------------------------*/
 
 static void
 history_window_destroy(GtkWidget *window, WindowStruct *curr)
@@ -298,8 +336,6 @@ history_window_create(WindowStruct *history_window)
     //history_window = g_new0(WindowStruct, 1);
     PidginConversation *gtkconv = history_window->gtkconv;
     PurpleConversation *conv = gtkconv->active_conv;
-
-    //purple_debug_misc(PLUGIN_ID, "created history_window :: with %s\n", conv->name);
 
     history_window->window = pidgin_create_window("XEP-136 History", PIDGIN_HIG_BORDER, NULL, TRUE);
     gtk_window_set_default_size(GTK_WINDOW(history_window->window), 400, 350);
@@ -319,7 +355,7 @@ history_window_create(WindowStruct *history_window)
     history_window->disable = gtk_button_new_with_label("Disable");
 
     g_signal_connect(G_OBJECT(history_window->show), "clicked",
-	    G_CALLBACK(show_clicked), (gpointer) history_window->gtkconv);
+	    G_CALLBACK(show_clicked), (gpointer) history_window);
 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
@@ -388,16 +424,20 @@ history_button_clicked(GtkWidget *button, PidginConversation *gtkconv)
 
     if (test->included == TRUE) {
 	g_free(test);
-	//purple_debug_misc(PLUGIN_ID, "test included :: TRUE\n");
+	purple_debug_misc(PLUGIN_ID, "test included :: TRUE\n");
 	return;
     }
 
     g_free(test);
 
-    //purple_debug_misc(PLUGIN_ID, "test included :: FALSE\n");
+    purple_debug_misc(PLUGIN_ID, "test included :: FALSE\n");
 
     history_window_open(gtkconv);
 }
+
+/*------------------------------------------------------------
+ * attach, detach, history_button
+ *------------------------------------------------------------*/
 
 static gboolean
 if_jabber(PidginConversation *gtkconv)
@@ -413,10 +453,10 @@ if_jabber(PidginConversation *gtkconv)
 
     // test jabber conversation
     if (g_strcmp0(jabber_id, purple_account_get_protocol_id(acc))) {
-	//purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: TRUE\n");
+	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: TRUE\n");
 	return TRUE;
     } else {
-	//purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: FALSE\n");
+	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: FALSE\n");
 	return FALSE;
     }
 }
@@ -499,6 +539,16 @@ conv_created(PurpleConversation *conv, gpointer null)
     attach_to_gtkconv(gtkconv, NULL);
 }
 
+static void
+destroy_windows(WindowStruct *curr)
+{
+    gtk_widget_destroy(curr->window);
+}
+
+/*------------------------------------------------------------
+ * plugin load, unload, PurplePluginInfo, init_plugin
+ *------------------------------------------------------------*/
+
 static gboolean
 plugin_load(PurplePlugin *plugin)
 {
@@ -519,12 +569,6 @@ plugin_load(PurplePlugin *plugin)
 	    PURPLE_CALLBACK(xmlnode_received), NULL);
 
     return TRUE;
-}
-
-static void
-destroy_windows(WindowStruct *curr)
-{
-    gtk_widget_destroy(curr->window);
 }
 
 static gboolean
