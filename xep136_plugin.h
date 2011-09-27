@@ -4,7 +4,6 @@ typedef struct _WindowStruct {
     GtkWidget *window;
 
     GtkWidget *mainbox;
-
     GtkWidget *left;
     GtkWidget *center;
     GtkWidget *rightbox;
@@ -24,27 +23,41 @@ typedef struct _WindowStruct {
 
     //conversation
     PidginConversation *gtkconv;
+
+    //xmlns for current server
     char *xmlns;
+
+    // retrieved collections
+    GList *coll;
 } WindowStruct;
+
+typedef struct {
+    gchar *raw;
+    gchar *pretty;
+    gchar *with;
+} RetrieveCollection;
 
 typedef struct {
     PidginConversation *gtkconv;
     gboolean included;
 } Test_struct;
 
-typedef struct _Recipient_info {
+typedef struct {
     PurpleConnection *gc;
     xmlnode *xml;
     gboolean match;
 } Recipient_info;
 
 /* misc functions, get_my_username, get_server_name, find_recipient */
-//static char * get_my_username(WindowStruct *curr);
 static gchar * get_server_name(PidginConversation *gtkconv);
 static void find_recipient(WindowStruct *curr, Recipient_info *recipient);
 
 /* receive and explore received xmlnode, iq_list, iq_query */
+
+static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
 static void retrieve_collection(WindowStruct *curr, char *start);
+static void iq_retrieve(WindowStruct *curr, xmlnode *xml);
+static void add_collection(WindowStruct *curr, gchar *start, gchar *with);
 static void iq_list(WindowStruct *curr, xmlnode *xml);
 static void iq_query(WindowStruct *curr, xmlnode *xml);
 static void explore_xml(WindowStruct *curr, xmlnode *xml);

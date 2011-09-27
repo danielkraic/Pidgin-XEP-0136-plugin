@@ -22,26 +22,6 @@ static char *xmlns_prosody = "urn:xmpp:archive";
  * misc functions, get_server_name, find_recipient
  *--------------------------------------------------------------------------------*/
 
-/*
-static char *
-get_my_username(WindowStruct *curr)
-{
-    PidginConversation *gtkconv = curr->gtkconv;
-    PurpleConversation *purple_conv = gtkconv->active_conv;
-    PurpleAccount *acc = purple_conv->account;
-    char *my_username = NULL; 
-
-    if (!acc) {
-	purple_debug_error(PLUGIN_ID, "ERROR: 'get_my_username': !acc\n");
-	return;
-    }
-
-    my_username = acc->username;
-
-    return my_username;
-}
-*/
-
 static gchar * 
 get_server_name(PidginConversation *gtkconv)
 {
@@ -121,26 +101,115 @@ find_recipient(WindowStruct *curr, Recipient_info *recipient)
  *------------------------------------------------------------*/
 
 static void
+send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
+{
+    if (strcmp(coll->raw, new->raw) == 0) {
+	new->with = coll->with;
+    }
+}
+
+static void
 retrieve_collection(WindowStruct *curr, char *start)
 {
     gchar *message = NULL;
-
+    RetrieveCollection *new = NULL;
     PurpleConversation *purple_conv = (curr->gtkconv)->active_conv;
-    char *with = NULL;
     
     if (!purple_conv) {
 	purple_debug_error(PLUGIN_ID, "ERROR: 'purple_conv' retrieve_collection\n");
 	return;
     }
-    
-    with = purple_conv->name;
 
-    message = g_strdup_printf("<iq id='xep136%x' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", g_random_int(), curr->xmlns, with, start);
+    new = g_malloc0(sizeof(RetrieveCollection));
+    if (!new) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
+	return;
+    }
 
-    //purple_debug_misc(PLUGIN_ID, "history_window_open :: %s\n", message);
+    new->raw = start;
+    new->with = NULL;
+
+    g_list_foreach(curr->coll, (GFunc) send_propher_name, (gpointer) new);
+
+    if (!new->with) {
+	purple_debug_misc(PLUGIN_ID, "retrieve_collection :: !new->with\n");
+	return;
+    }
+
+    message = g_strdup_printf("<iq id='xep136%x' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", g_random_int(), curr->xmlns, new->with, new->raw);
+
     message_send(message, curr->gtkconv);
-    
+
     g_free(message);
+
+    g_free(new);
+}
+
+static void
+iq_retrieve(WindowStruct *curr, xmlnode *xml)
+{
+    GtkTreeIter iter;
+    xmlnode *c = NULL;
+    xmlnode *d = NULL;
+    char *data = NULL;
+
+    gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+
+    for (c = xml->child; c; c = c->next) {
+	if ( (strcmp(c->name, "from") == 0) || (strcmp(c->name, "to") == 0) ) { 
+	    for (d = c->child; d; d = d->next) {
+		if (strcmp(d->name, "body") == 0) { 
+		    if (d->child) {
+			xmlnode *body = d->child;
+			char *text = NULL;
+			gchar *from_to = NULL;
+
+			if (body->data) {
+			    text = xmlnode_get_data(d);
+			    if (text) {
+				from_to = g_strdup_printf("<b><font color='#ffcece'>%s</font></b>", c->name);
+
+				gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), from_to, 0);
+				gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
+				gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), text, 0);
+				gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+
+				g_free(text);
+				g_free(from_to);
+			    } else {
+				purple_debug_misc(PLUGIN_ID, "iq_retrieve :: body :: data !get_data\n");
+			    }
+			}
+		    }
+		}
+	    }
+	}
+    }
+}
+
+static void
+add_collection(WindowStruct *curr, gchar *start, gchar *with)
+{
+    RetrieveCollection *new = NULL;
+
+    new = g_malloc0(sizeof(RetrieveCollection));
+    if (!new) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
+	return;
+    }
+
+    new->raw = g_strdup(start);
+    new->with = g_strdup(with);
+    //new->pretty = make_pretty_time(start);
+    purple_debug_misc(PLUGIN_ID, "add_collection :: %s :: %s\n", new->with, new->raw);
+    
+    //if (!new->raw || !new->with || new->pretty) {
+    if ( !(new->raw) || !(new->with) ) {
+	purple_debug_misc(PLUGIN_ID, "add_collection :: !prepend\n");
+	return;
+    }
+
+    curr->coll = g_list_prepend(curr->coll, new);
 }
 
 static void
@@ -149,26 +218,39 @@ iq_list(WindowStruct *curr, xmlnode *xml)
     GtkTreeIter iter;
     xmlnode *c = NULL;
     xmlnode *d = NULL;
+    char *with = NULL;
+    char *start = NULL;
 
     gtk_tree_store_clear(curr->treestore);
+
+    if (curr->coll) {
+	g_list_free(curr->coll);
+	curr->coll = NULL;
+    }
 
     for (c = xml->child; c; c = c->next) {
 	if (strcmp(c->name, "chat") == 0) {
 	    for (d = c->child; d; d = d->next) {
+
 		if (strcmp(d->name, "start") == 0) {
 		    if (!(d->data)) {
-			purple_debug_error(PLUGIN_ID, "ERROR: iq_list :: d->data\n");
+			purple_debug_error(PLUGIN_ID, "ERROR: iq_list :: start\n");
 			return;
 		    }
-		    //purple_debug_misc(PLUGIN_ID, "retrieve_collection :: %s\n", d->data);
-		    //retrieve_collection(curr, d->data);
-		    gtk_tree_store_append(curr->treestore, &iter, NULL);
-		    gtk_tree_store_set(curr->treestore, &iter, 0, d->data, -1);
-
-		    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), d->data, 0);
-		    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		    start = d->data;
+		} else if (strcmp(d->name, "with") == 0) {
+		    if (!(d->data)) {
+			purple_debug_error(PLUGIN_ID, "ERROR: iq_list :: with\n");
+			return;
+		    }
+		    with = d->data;
 		}
 	    }
+
+	    add_collection(curr, (gchar *) start, (gchar *) with);
+
+	    gtk_tree_store_append(curr->treestore, &iter, NULL);
+	    gtk_tree_store_set(curr->treestore, &iter, 0, start, -1);
 	}
     }
 }
@@ -231,6 +313,7 @@ explore_xml(WindowStruct *curr, xmlnode *xml)
 		purple_debug_misc(PLUGIN_ID, "explore_xml :: RESULT\n");
 	    } else if (strcmp(c->data, "error") == 0) { 
 		purple_debug_misc(PLUGIN_ID, "explore_xml :: ERROR\n");
+		return;
 	    }
 	} else if (strcmp(c->name, "query") == 0) {
 	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_query\n");
@@ -238,9 +321,9 @@ explore_xml(WindowStruct *curr, xmlnode *xml)
 	} else if (strcmp(c->name, "list") == 0) {
 	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_list\n");
 	    iq_list(curr, c);
-	} else if (strcmp(c->name, "retrieve") == 0) {
-	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_retrieve\n");
-	    //iq_retrieve(curr, c);
+	} else if (strcmp(c->name, "chat") == 0) {
+	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_chat\n");
+	    iq_retrieve(curr, c);
 	}
     }
 }
@@ -325,11 +408,12 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
 	return;
     }
 
+    //TODO: show next 100 ?
+    
     with = purple_conv->name;
     message = g_strdup_printf("<iq id='xep136%x' type='get'><list xmlns='%s' with='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", 
 	    g_random_int(), curr->xmlns, with);
 
-    //purple_debug_misc(PLUGIN_ID, "history_window_open :: %s\n", message);
     message_send(message, curr->gtkconv);
     
     g_free(message);
@@ -480,6 +564,7 @@ history_window_open(PidginConversation *gtkconv)
 
     new->gtkconv = gtkconv;
     history_window_create(new);
+    new->coll= NULL;
 
     list = g_list_prepend(list, new);
 
@@ -546,14 +631,16 @@ static void
 destroy_windows(WindowStruct *curr)
 {
     gtk_widget_destroy(curr->window);
-}
 
+    if (curr->coll)
+	g_list_free(curr->coll);
+}
 
 static void
 destroy_history_window(WindowStruct *curr, PidginConversation *gtkconv)
 {
     if (curr->gtkconv == gtkconv) {
-	gtk_widget_destroy(curr->window);
+	destroy_windows(curr);
     }
 }
 
