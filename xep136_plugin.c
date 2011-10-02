@@ -90,7 +90,6 @@ find_recipient(WindowStruct *curr, Recipient_info *recipient)
     }
 
     if (gc == recipient->gc) {
-	//purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: gc match for %s\n", get_my_username(curr));
 	recipient->match = TRUE;
     	explore_xml(curr, recipient->xml);
     }
@@ -103,7 +102,7 @@ find_recipient(WindowStruct *curr, Recipient_info *recipient)
 static void
 send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
 {
-    if (strcmp(coll->raw, new->raw) == 0) {
+    if (strcmp(coll->start, new->start) == 0) {
 	new->with = coll->with;
     }
 }
@@ -126,7 +125,7 @@ retrieve_collection(WindowStruct *curr, char *start)
 	return;
     }
 
-    new->raw = start;
+    new->start = start;
     new->with = NULL;
 
     g_list_foreach(curr->coll, (GFunc) send_propher_name, (gpointer) new);
@@ -136,13 +135,41 @@ retrieve_collection(WindowStruct *curr, char *start)
 	return;
     }
 
-    message = g_strdup_printf("<iq id='xep136%x' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", g_random_int(), curr->xmlns, new->with, new->raw);
+    message = g_strdup_printf("<iq id='xep136%x' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", g_random_int(), curr->xmlns, new->with, new->start);
 
     message_send(message, curr->gtkconv);
 
     g_free(message);
 
     g_free(new);
+}
+
+static void
+iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
+{
+    xmlnode *body = d->child;
+    char *text = NULL;
+    gchar *from_to = NULL;
+
+    if (d->child) {
+	if (body->data) {
+	    text = xmlnode_get_data(d);
+
+	    if (text) {
+		from_to = g_strdup_printf("<b><font color='#ffcece'>%s</font></b>", c->name);
+
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), from_to, 0);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), text, 0);
+		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+
+		g_free(text);
+		g_free(from_to);
+	    } else {
+		purple_debug_misc(PLUGIN_ID, "iq_retrieve :: body :: data !get_data\n");
+	    }
+	}
+    }
 }
 
 static void
@@ -159,28 +186,8 @@ iq_retrieve(WindowStruct *curr, xmlnode *xml)
 	if ( (strcmp(c->name, "from") == 0) || (strcmp(c->name, "to") == 0) ) { 
 	    for (d = c->child; d; d = d->next) {
 		if (strcmp(d->name, "body") == 0) { 
-		    if (d->child) {
-			xmlnode *body = d->child;
-			char *text = NULL;
-			gchar *from_to = NULL;
+		    iq_retrieve_body(curr, c, d);
 
-			if (body->data) {
-			    text = xmlnode_get_data(d);
-			    if (text) {
-				from_to = g_strdup_printf("<b><font color='#ffcece'>%s</font></b>", c->name);
-
-				gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), from_to, 0);
-				gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
-				gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), text, 0);
-				gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
-
-				g_free(text);
-				g_free(from_to);
-			    } else {
-				purple_debug_misc(PLUGIN_ID, "iq_retrieve :: body :: data !get_data\n");
-			    }
-			}
-		    }
 		}
 	    }
 	}
@@ -198,13 +205,12 @@ add_collection(WindowStruct *curr, gchar *start, gchar *with)
 	return;
     }
 
-    new->raw = g_strdup(start);
+    new->start = g_strdup(start);
     new->with = g_strdup(with);
-    //new->pretty = make_pretty_time(start);
-    purple_debug_misc(PLUGIN_ID, "add_collection :: %s :: %s\n", new->with, new->raw);
+
+    //purple_debug_misc(PLUGIN_ID, "add_collection :: %s :: %s\n", new->with, new->start);
     
-    //if (!new->raw || !new->with || new->pretty) {
-    if ( !(new->raw) || !(new->with) ) {
+    if ( !(new->start) || !(new->with) ) {
 	purple_debug_misc(PLUGIN_ID, "add_collection :: !prepend\n");
 	return;
     }
@@ -247,12 +253,58 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 		}
 	    }
 
+	    //TODO: show next 100
+	    
 	    add_collection(curr, (gchar *) start, (gchar *) with);
 
 	    gtk_tree_store_append(curr->treestore, &iter, NULL);
 	    gtk_tree_store_set(curr->treestore, &iter, 0, start, -1);
 	}
     }
+}
+
+static void
+iq_pref(WindowStruct *curr, xmlnode *xml)
+{
+    xmlnode *c = NULL;
+    xmlnode *d = NULL;
+    gchar *text = NULL;
+
+    //purple_debug_misc(PLUGIN_ID, "iq_pref :: enter\n");
+
+    for (c = xml->child; c; c = c->next) {
+	if (strcmp(c->name, "auto") == 0) {
+	    for (d = c->child; d; d = d->next) {
+		if (strcmp(d->name, "save") == 0) {
+		    text = g_strdup_printf("<b><font color='#ffcece'>auto save :: %s</font></b>", d->data);
+
+		    if (!text) {
+			purple_debug_error(PLUGIN_ID, "ERROR: 'iq_pref' !strdup(text)\n");
+			return;
+		    }
+
+		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), text, 0);
+		    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+
+		    g_free(text);
+		}
+	    }
+	}
+    }
+
+    //purple_debug_misc(PLUGIN_ID, "iq_pref :: exit\n");
+}
+
+static void
+iq_query_supported(WindowStruct *curr)
+{
+    gtk_widget_set_sensitive(curr->mainbox, TRUE);
+
+    gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+
+    send_pref_info(curr);
 }
 
 static void
@@ -268,23 +320,19 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 
 	    if (strcmp(( c->child)->data, xmlns_prosody) == 0) {
 
-		purple_debug_misc(PLUGIN_ID, "disco :: PROSODY\n");
+		//purple_debug_misc(PLUGIN_ID, "disco :: PROSODY\n");
 		curr->xmlns = xmlns_prosody;
 
-		gtk_widget_set_sensitive(curr->mainbox, TRUE);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported!", 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		iq_query_supported(curr);
 
 		return;
 
 	    } else if (strcmp(( c->child)->data, xmlns_ejabberd) == 0) {
 
-		purple_debug_misc(PLUGIN_ID, "disco :: EJABBERD\n");
+		//purple_debug_misc(PLUGIN_ID, "disco :: EJABBERD\n");
 		curr->xmlns = xmlns_ejabberd;	
 
-		gtk_widget_set_sensitive(curr->mainbox, TRUE);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported!", 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		iq_query_supported(curr);
 
 		return;
 	    }
@@ -307,15 +355,19 @@ explore_xml(WindowStruct *curr, xmlnode *xml)
     }
 
     for (c = xml->child; c; c = c->next) {
-
 	if (strcmp(c->name, "type") == 0) {
 	    if (strcmp(c->data, "result") == 0) { 
-		purple_debug_misc(PLUGIN_ID, "explore_xml :: RESULT\n");
+		//purple_debug_misc(PLUGIN_ID, "explore_xml :: RESULT\n");
+		break;
 	    } else if (strcmp(c->data, "error") == 0) { 
-		purple_debug_misc(PLUGIN_ID, "explore_xml :: ERROR\n");
+		purple_debug_misc(PLUGIN_ID, "explore_xml :: xml type ERROR\n");
 		return;
 	    }
-	} else if (strcmp(c->name, "query") == 0) {
+	}
+    }
+
+    for (c = xml->child; c; c = c->next) {
+	if (strcmp(c->name, "query") == 0) {
 	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_query\n");
 	    iq_query(curr, c);
 	} else if (strcmp(c->name, "list") == 0) {
@@ -324,6 +376,9 @@ explore_xml(WindowStruct *curr, xmlnode *xml)
 	} else if (strcmp(c->name, "chat") == 0) {
 	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_chat\n");
 	    iq_retrieve(curr, c);
+	} else if (strcmp(c->name, "pref") == 0) {
+	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_pref\n");
+	    iq_pref(curr, c);
 	}
     }
 }
@@ -379,8 +434,56 @@ message_send(char *message, PidginConversation *gtkconv)
     if (gc)
 	    prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
 
-    if (prpl_info && prpl_info->send_raw != NULL)
+    if (prpl_info && prpl_info->send_raw != NULL) 
 	    prpl_info->send_raw(gc, message, strlen(message));
+}
+
+static void
+send_pref_info(WindowStruct *curr)
+{
+    gchar *message = NULL;
+
+    message = g_strdup_printf("<iq id='xep136%x' type='get'><pref xmlns='%s'/></iq>", g_random_int(), curr->xmlns);
+
+    message_send(message, curr->gtkconv);
+
+    g_free(message);
+}
+
+static void
+status_clicked(GtkWidget *button, WindowStruct *curr)
+{
+    send_disco_info(curr->gtkconv);
+}
+
+static void
+disable_clicked(GtkWidget *button, WindowStruct *curr)
+{
+    gchar *message = NULL;
+
+    message = g_strdup_printf("<iq type='set' id='xep136%x'><pref xmlns='%s'><auto save='false'/></pref></iq>",
+	    g_random_int(), curr->xmlns);
+
+    message_send(message, curr->gtkconv);
+
+    g_free(message);
+
+    send_disco_info(curr->gtkconv);
+}
+
+static void
+enable_clicked(GtkWidget *button, WindowStruct *curr)
+{
+    gchar *message = NULL;
+
+    message = g_strdup_printf("<iq type='set' id='xep136%x'><pref xmlns='%s'><auto save='true'/></pref></iq>",
+	    g_random_int(), curr->xmlns);
+
+    message_send(message, curr->gtkconv);
+
+    g_free(message);
+
+    send_disco_info(curr->gtkconv);
 }
 
 static void
@@ -408,8 +511,6 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
 	return;
     }
 
-    //TODO: show next 100 ?
-    
     with = purple_conv->name;
     message = g_strdup_printf("<iq id='xep136%x' type='get'><list xmlns='%s' with='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", 
 	    g_random_int(), curr->xmlns, with);
@@ -464,7 +565,7 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
 
     gtk_tree_model_get(model, &iter, 0, &date, -1);
 
-    purple_debug_misc(PLUGIN_ID, "date_selected :: %s\n", date);
+    //purple_debug_misc(PLUGIN_ID, "date_selected :: %s\n", date);
 
     retrieve_collection(curr, date);
 
@@ -506,7 +607,7 @@ history_window_create(WindowStruct *history_window)
     PurpleConversation *conv = gtkconv->active_conv;
 
     history_window->window = pidgin_create_window("XEP-136 History", PIDGIN_HIG_BORDER, NULL, TRUE);
-    gtk_window_set_default_size(GTK_WINDOW(history_window->window), 600, 350);
+    gtk_window_set_default_size(GTK_WINDOW(history_window->window), 700, 350);
 
     g_signal_connect(G_OBJECT(history_window->window), "destroy", 
 	    G_CALLBACK(history_window_destroy), (gpointer) history_window );
@@ -522,8 +623,20 @@ history_window_create(WindowStruct *history_window)
     history_window->show = gtk_button_new_with_label("Show");
     history_window->enable = gtk_button_new_with_label("Enable");
     history_window->disable = gtk_button_new_with_label("Disable");
+    history_window->status = gtk_button_new_with_label("Status");
+
+    //buttons signals
     g_signal_connect(G_OBJECT(history_window->show), "clicked",
 	    G_CALLBACK(show_clicked), (gpointer) history_window);
+
+    g_signal_connect(G_OBJECT(history_window->enable), "clicked",
+	    G_CALLBACK(enable_clicked), (gpointer) history_window);
+
+    g_signal_connect(G_OBJECT(history_window->disable), "clicked",
+	    G_CALLBACK(disable_clicked), (gpointer) history_window);
+
+    g_signal_connect(G_OBJECT(history_window->status), "clicked",
+	    G_CALLBACK(status_clicked), (gpointer) history_window);
 
     //boxing 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
@@ -540,6 +653,7 @@ history_window_create(WindowStruct *history_window)
     gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->show, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->enable, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->disable, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->status, FALSE, FALSE, 0);
 
     //boxing main
     gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->left, TRUE, TRUE, 0);
@@ -562,9 +676,10 @@ history_window_open(PidginConversation *gtkconv)
 	return;
     }
 
-    new->gtkconv = gtkconv;
-    history_window_create(new);
     new->coll= NULL;
+    new->gtkconv = gtkconv;
+
+    history_window_create(new);
 
     list = g_list_prepend(list, new);
 
@@ -596,7 +711,7 @@ history_button_clicked(GtkWidget *button, PidginConversation *gtkconv)
 
     g_free(test);
 
-    purple_debug_misc(PLUGIN_ID, "test included :: FALSE\n");
+    //purple_debug_misc(PLUGIN_ID, "test included :: FALSE\n");
 
     history_window_open(gtkconv);
 }
@@ -619,10 +734,10 @@ if_jabber(PidginConversation *gtkconv)
 
     // test jabber conversation
     if (g_strcmp0(jabber_id, purple_account_get_protocol_id(acc))) {
-	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: TRUE\n");
+	//purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: TRUE\n");
 	return TRUE;
     } else {
-	purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: FALSE\n");
+	//purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: FALSE\n");
 	return FALSE;
     }
 }
@@ -794,7 +909,7 @@ static PurplePluginInfo info = {
 
     PLUGIN_ID,
     "XEP-0136 plugin",
-    "0.1",
+    "0.2",
 
     "XEP-0136 plugin",
     "Server Message Archiving",

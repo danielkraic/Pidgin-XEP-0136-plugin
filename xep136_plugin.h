@@ -16,6 +16,7 @@ typedef struct _WindowStruct {
     GtkWidget *show;
     GtkWidget *enable;
     GtkWidget *disable;
+    GtkWidget *status;
 
     //left
     GtkTreeStore *treestore;
@@ -32,8 +33,7 @@ typedef struct _WindowStruct {
 } WindowStruct;
 
 typedef struct {
-    gchar *raw;
-    gchar *pretty;
+    gchar *start;
     gchar *with;
 } RetrieveCollection;
 
@@ -56,15 +56,22 @@ static void find_recipient(WindowStruct *curr, Recipient_info *recipient);
 
 static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
 static void retrieve_collection(WindowStruct *curr, char *start);
+static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d);
 static void iq_retrieve(WindowStruct *curr, xmlnode *xml);
 static void add_collection(WindowStruct *curr, gchar *start, gchar *with);
 static void iq_list(WindowStruct *curr, xmlnode *xml);
+static void iq_pref(WindowStruct *curr, xmlnode *xml);
+static void iq_query_supported(WindowStruct *curr);
 static void iq_query(WindowStruct *curr, xmlnode *xml);
 static void explore_xml(WindowStruct *curr, xmlnode *xml);
 static void xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null);
 
 /* send message, service discovery, list collections */
 static void message_send(char *message, PidginConversation *gtkconv);
+static void send_pref_info(WindowStruct *curr);
+static void status_clicked(GtkWidget *button, WindowStruct *curr);
+static void disable_clicked(GtkWidget *button, WindowStruct *curr);
+static void enable_clicked(GtkWidget *button, WindowStruct *curr);
 static void show_clicked(GtkWidget *button, WindowStruct *curr);
 static void send_disco_info(PidginConversation *gtkconv);
 

@@ -1,9 +1,18 @@
-download xep136_plugin.h, xep136_plugin.c and Makefile
+works for me on archlinux with ABS (https://wiki.archlinux.org/index.php/ABS)
 
-run these commands:
+install:
+download xep136_plugin.h, xep136_plugin.c and Makefile and run these commands
+	$ make
+	$ make install
+	$ make clean
 
-$ make
-
-$ make install
-
-$ make clean
+another method:
+download pidgin source code, xep136_plugin.c, xep136_plugin.h and run these commands
+	$ tar xjvf pidgin-2.10.0.tar.bz2 
+	$ mv xep136_plugin.c xep136_plugin.h pidgin-2.10.0/pidgin/plugins/
+	$ cd pidgin-2.10.0/
+	$ ./configure
+	$ cd pidgin/plugins/
+	$ make xep136_plugin.so
+	$ mkdir ~/.purple/plugins/
+	$ cp xep136_plugin.so ~/.purple/plugins/
