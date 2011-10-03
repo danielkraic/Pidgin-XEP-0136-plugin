@@ -57,39 +57,12 @@ get_server_name(PidginConversation *gtkconv)
 static void
 find_recipient(WindowStruct *curr, Recipient_info *recipient)
 {
-    PidginConversation *gtkconv = NULL;
-    PurpleConversation *purple_conv = NULL;
-    PurpleAccount *acc = NULL;
-    PurpleConnection *gc = NULL;
-
     if (recipient->match == TRUE)
 	return;
 
-    gtkconv = curr->gtkconv;
-    if (!gtkconv) {
-	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: ERR gtkconv\n");
-	return;
-    }
+    purple_debug_misc(PLUGIN_ID, "find_recipient :: curr->id=%s recipient->id=%s\n", curr->id, recipient->id);
 
-    purple_conv = gtkconv->active_conv;
-    if (!purple_conv) {
-	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: ERR purple_conv\n");
-	return;
-    }
-
-    acc = purple_conv->account;
-    if (!acc) {
-	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: ERR acc\n");
-	return;
-    }
-
-    gc = acc->gc;
-    if (!gc) {
-	purple_debug_misc(PLUGIN_ID, "FIND_RECIPIENT :: ERR gc\n");
-	return;
-    }
-
-    if (gc == recipient->gc) {
+    if (strcmp(curr->id, recipient->id) == 0) {
 	recipient->match = TRUE;
     	explore_xml(curr, recipient->xml);
     }
@@ -135,7 +108,7 @@ retrieve_collection(WindowStruct *curr, char *start)
 	return;
     }
 
-    message = g_strdup_printf("<iq id='xep136%x' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", g_random_int(), curr->xmlns, new->with, new->start);
+    message = g_strdup_printf("<iq id='%s' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", curr->id, curr->xmlns, new->with, new->start);
 
     message_send(message, curr->gtkconv);
 
@@ -195,6 +168,13 @@ iq_retrieve(WindowStruct *curr, xmlnode *xml)
 }
 
 static void
+empty_collection(WindowStruct *curr)
+{
+    gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b><font color='#ffcece'>Empty collection!</font></b><br>", 0);
+}
+
+static void
 add_collection(WindowStruct *curr, gchar *start, gchar *with)
 {
     RetrieveCollection *new = NULL;
@@ -234,6 +214,12 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 	curr->coll = NULL;
     }
 
+    //if empty collection received and no collection retrieved before 
+    if ( !(xml->child) && !(curr->coll) ) {
+	empty_collection(curr);
+	return;
+    }
+
     for (c = xml->child; c; c = c->next) {
 	if (strcmp(c->name, "chat") == 0) {
 	    for (d = c->child; d; d = d->next) {
@@ -252,8 +238,6 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 		    with = d->data;
 		}
 	    }
-
-	    //TODO: show next 100
 	    
 	    add_collection(curr, (gchar *) start, (gchar *) with);
 
@@ -261,6 +245,10 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 	    gtk_tree_store_set(curr->treestore, &iter, 0, start, -1);
 	}
     }
+
+    //retrieve next 100
+    purple_debug_misc(PLUGIN_ID, "IQ_LIST :: houston, i needs more chats :-\(\n");
+    //show_clicked(NULL, curr);
 }
 
 static void
@@ -302,6 +290,9 @@ iq_query_supported(WindowStruct *curr)
 
     gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "id = ", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), curr->id, 0);
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
 
     send_pref_info(curr);
@@ -387,6 +378,7 @@ static void
 xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
 {
     xmlnode *xml = *packet;
+    xmlnode *c = NULL;
     Recipient_info *recipient = NULL; 
 
     if (list == NULL) {
@@ -401,12 +393,19 @@ xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
 	return;
     }
 
-    recipient->gc = gc;
     recipient->xml = xml;
     recipient->match = FALSE;
 
     if (strcmp(xml->name, "iq") == 0) {
-	//purple_debug_misc(PLUGIN_ID, "XMLNODE_RECEIVED :: received iq\n");
+	for (c = xml->child; c; c = c->next) {
+	    if (strcmp(c->name, "id") == 0) {
+		recipient->id = c->data;
+		break;
+	    }
+	}
+
+	purple_debug_misc(PLUGIN_ID, "xmlnode_received :: id=%s\n", recipient->id);
+
 	g_list_foreach(list, (GFunc) find_recipient, (gpointer) recipient);
     }
 
@@ -443,7 +442,7 @@ send_pref_info(WindowStruct *curr)
 {
     gchar *message = NULL;
 
-    message = g_strdup_printf("<iq id='xep136%x' type='get'><pref xmlns='%s'/></iq>", g_random_int(), curr->xmlns);
+    message = g_strdup_printf("<iq id='%s' type='get'><pref xmlns='%s'/></iq>", curr->id, curr->xmlns);
 
     message_send(message, curr->gtkconv);
 
@@ -453,7 +452,7 @@ send_pref_info(WindowStruct *curr)
 static void
 status_clicked(GtkWidget *button, WindowStruct *curr)
 {
-    send_disco_info(curr->gtkconv);
+    send_disco_info(curr);
 }
 
 static void
@@ -461,14 +460,14 @@ disable_clicked(GtkWidget *button, WindowStruct *curr)
 {
     gchar *message = NULL;
 
-    message = g_strdup_printf("<iq type='set' id='xep136%x'><pref xmlns='%s'><auto save='false'/></pref></iq>",
-	    g_random_int(), curr->xmlns);
+    message = g_strdup_printf("<iq type='set' id='%s'><pref xmlns='%s'><auto save='false'/></pref></iq>",
+	    curr->id, curr->xmlns);
 
     message_send(message, curr->gtkconv);
 
     g_free(message);
 
-    send_disco_info(curr->gtkconv);
+    send_disco_info(curr);
 }
 
 static void
@@ -476,14 +475,14 @@ enable_clicked(GtkWidget *button, WindowStruct *curr)
 {
     gchar *message = NULL;
 
-    message = g_strdup_printf("<iq type='set' id='xep136%x'><pref xmlns='%s'><auto save='true'/></pref></iq>",
-	    g_random_int(), curr->xmlns);
+    message = g_strdup_printf("<iq type='set' id='%s'><pref xmlns='%s'><auto save='true'/></pref></iq>",
+	    curr->id, curr->xmlns);
 
     message_send(message, curr->gtkconv);
 
     g_free(message);
 
-    send_disco_info(curr->gtkconv);
+    send_disco_info(curr);
 }
 
 static void
@@ -512,8 +511,8 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
     }
 
     with = purple_conv->name;
-    message = g_strdup_printf("<iq id='xep136%x' type='get'><list xmlns='%s' with='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", 
-	    g_random_int(), curr->xmlns, with);
+    message = g_strdup_printf("<iq id='%s' type='get'><list xmlns='%s' with='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", 
+	    curr->id, curr->xmlns, with);
 
     message_send(message, curr->gtkconv);
     
@@ -521,9 +520,9 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
 }
 
 static void
-send_disco_info(PidginConversation *gtkconv)
+send_disco_info(WindowStruct *curr)
 {  
-    char *server = get_server_name(gtkconv);
+    char *server = get_server_name(curr->gtkconv);
     gchar *message = NULL;
 
     if (server == NULL) {
@@ -531,10 +530,10 @@ send_disco_info(PidginConversation *gtkconv)
 	return;
     }
 
-    message = g_strdup_printf("<iq to='%s' id='xep136%x' type='get'><query xmlns='http://jabber.org/protocol/disco#info'/></iq>",
-	    server, g_random_int());
+    message = g_strdup_printf("<iq to='%s' id='%s' type='get'><query xmlns='http://jabber.org/protocol/disco#info'/></iq>",
+	    server, curr->id);
 
-    message_send(message, gtkconv);
+    message_send(message, curr->gtkconv);
     
     g_free(message);
 
@@ -619,8 +618,8 @@ history_window_create(WindowStruct *history_window)
     history_window->label_username = gtk_label_new(conv->name);
     history_window->imhtml = gtk_imhtml_new(NULL, NULL);
     history_window->imhtml_win = gtk_scrolled_window_new(0, 0);
-    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_SHADOW_IN);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
+    //gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_SHADOW_IN);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     //right
     history_window->show = gtk_button_new_with_label("Show");
@@ -683,12 +682,13 @@ history_window_open(PidginConversation *gtkconv)
 
     new->coll= NULL;
     new->gtkconv = gtkconv;
+    new->id = g_strdup_printf("xep136%x", g_random_int());
 
     history_window_create(new);
 
     list = g_list_prepend(list, new);
 
-    send_disco_info(gtkconv);
+    send_disco_info(new);
 }
 
 static void
@@ -750,10 +750,10 @@ if_jabber(PidginConversation *gtkconv)
 static void
 destroy_windows(WindowStruct *curr)
 {
-    gtk_widget_destroy(curr->window);
-
     if (curr->coll)
 	g_list_free(curr->coll);
+
+    gtk_widget_destroy(curr->window);
 }
 
 static void
@@ -767,7 +767,14 @@ destroy_history_window(WindowStruct *curr, PidginConversation *gtkconv)
 static void
 conv_deleted(PurpleConversation *conv, gpointer null)
 {
-    PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
+    PidginConversation *gtkconv = NULL;
+
+    if (!conv)
+	purple_debug_error(PLUGIN_ID, "ERROR: 'conv_deleted': !conv\n");
+
+    gtkconv = PIDGIN_CONVERSATION(conv);
+    if (!gtkconv)
+	purple_debug_error(PLUGIN_ID, "ERROR: 'conv_deleted': !gtkconv\n");
 
     g_return_if_fail(gtkconv != NULL);
 

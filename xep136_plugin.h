@@ -29,8 +29,12 @@ typedef struct _WindowStruct {
     //xmlns for current server
     char *xmlns;
 
+    //id for xmlns
+    char *id;
+
     // retrieved collections
     GList *coll;
+
 } WindowStruct;
 
 typedef struct {
@@ -44,8 +48,9 @@ typedef struct {
 } Test_struct;
 
 typedef struct {
-    PurpleConnection *gc;
+//    PurpleConnection *gc;
     xmlnode *xml;
+    char *id;
     gboolean match;
 } Recipient_info;
 
@@ -59,6 +64,7 @@ static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
 static void retrieve_collection(WindowStruct *curr, char *start);
 static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d);
 static void iq_retrieve(WindowStruct *curr, xmlnode *xml);
+static void empty_collection(WindowStruct *curr);
 static void add_collection(WindowStruct *curr, gchar *start, gchar *with);
 static void iq_list(WindowStruct *curr, xmlnode *xml);
 static void iq_pref(WindowStruct *curr, xmlnode *xml);
@@ -74,7 +80,7 @@ static void status_clicked(GtkWidget *button, WindowStruct *curr);
 static void disable_clicked(GtkWidget *button, WindowStruct *curr);
 static void enable_clicked(GtkWidget *button, WindowStruct *curr);
 static void show_clicked(GtkWidget *button, WindowStruct *curr);
-static void send_disco_info(PidginConversation *gtkconv);
+static void send_disco_info(WindowStruct *curr);
 
 /* GTK create, destroy, history window */
 static void history_window_destroy(GtkWidget *window, WindowStruct *curr);

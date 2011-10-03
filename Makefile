@@ -5,10 +5,10 @@ LDFLAGS=`pkg-config --libs glib-2.0`
 LDFLAGS+=`pkg-config --libs pidgin`
 
 xep136_plugin.so: xep136_plugin.o
-	gcc $(LDFLAGS) -shared -g -o $@ $?
+	gcc $(LDFLAGS) -shared -g -o $@ $? 
 
 xep136_plugin.o: xep136_plugin.c
-	gcc -c $(CFLAGS) -g -o $@ $?
+	gcc -c $(CFLAGS) -g -o $@ $? -fPIC
 
 clean:
 	rm -f xep136_plugin.so
