@@ -618,6 +618,9 @@ history_window_create(WindowStruct *history_window)
     //center
     history_window->label_username = gtk_label_new(conv->name);
     history_window->imhtml = gtk_imhtml_new(NULL, NULL);
+    history_window->imhtml_win = gtk_scrolled_window_new(0, 0);
+    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_SHADOW_IN);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
 
     //right
     history_window->show = gtk_button_new_with_label("Show");
@@ -644,10 +647,12 @@ history_window_create(WindowStruct *history_window)
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
 
     //boxing center 
+    gtk_container_add(GTK_CONTAINER(history_window->imhtml_win), history_window->imhtml);
     gtk_box_pack_start(GTK_BOX(history_window->center), history_window->label_username, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->center), 
+    gtk_box_pack_start(GTK_BOX(history_window->center), history_window->imhtml_win, TRUE, TRUE, 0);
+    /*gtk_box_pack_start(GTK_BOX(history_window->center), 
 	    pidgin_make_scrollable(history_window->imhtml, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC, GTK_SHADOW_ETCHED_IN, -1, -1), 
-	    TRUE, TRUE, 0);
+	    TRUE, TRUE, 0);*/
 
     //boxing right
     gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->show, FALSE, FALSE, 0);

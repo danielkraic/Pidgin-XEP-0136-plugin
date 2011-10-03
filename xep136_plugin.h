@@ -11,6 +11,7 @@ typedef struct _WindowStruct {
     //center
     GtkWidget *label_username;
     GtkWidget *imhtml;
+    GtkWidget *imhtml_win;
     
     //right
     GtkWidget *show;
