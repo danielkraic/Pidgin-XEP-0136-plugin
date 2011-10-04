@@ -54,11 +54,12 @@ typedef struct {
     gboolean match;
 } Recipient_info;
 
-/* misc functions, get_my_username, get_server_name, find_recipient */
+/* misc functions, increase_start_time, get_server_name, find_recipient */
+static gchar * increase_start_time(gchar *start);
 static gchar * get_server_name(PidginConversation *gtkconv);
 static void find_recipient(WindowStruct *curr, Recipient_info *recipient);
 
-/* receive and explore received xmlnode, iq_list, iq_query */
+/* explore received xmlnode, manage collections */
 
 static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
 static void retrieve_collection(WindowStruct *curr, char *start);
@@ -73,8 +74,9 @@ static void iq_query(WindowStruct *curr, xmlnode *xml);
 static void explore_xml(WindowStruct *curr, xmlnode *xml);
 static void xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null);
 
-/* send message, service discovery, list collections */
+/* send message, service discovery, show, enable, disable, status */
 static void message_send(char *message, PidginConversation *gtkconv);
+static void send_iq_list(WindowStruct *curr, gchar *last);
 static void send_pref_info(WindowStruct *curr);
 static void status_clicked(GtkWidget *button, WindowStruct *curr);
 static void disable_clicked(GtkWidget *button, WindowStruct *curr);

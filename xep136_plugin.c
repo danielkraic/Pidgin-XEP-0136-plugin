@@ -19,8 +19,33 @@ static char *xmlns_ejabberd = "http://www.xmpp.org/extensions/xep-0136.html#ns";
 static char *xmlns_prosody = "urn:xmpp:archive";
 
 /*--------------------------------------------------------------------------------
- * misc functions, get_server_name, find_recipient
+ * misc functions, increase_start_time, get_server_name, find_recipient  
  *--------------------------------------------------------------------------------*/
+
+static gchar *
+increase_start_time(gchar *start)
+{
+    gchar *new = NULL;
+    int i, c = 0;
+
+    new = (gchar *) g_malloc0( strlen(start) * sizeof(gchar) );
+    if (!new) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new increase_start_time\n");
+	return start;
+    }
+
+    for (i = 0; i < strlen(start); i++) {
+	if (i == 18) {
+	    c = (int) start[i];
+	    c++;
+	    new[i] = (char) c;
+	} else {
+	    new[i] = start[i];
+	}
+    }
+
+    return new;
+}
 
 static gchar * 
 get_server_name(PidginConversation *gtkconv)
@@ -69,7 +94,7 @@ find_recipient(WindowStruct *curr, Recipient_info *recipient)
 }
 
 /*------------------------------------------------------------
- * receive and explore received xmlnode, iq_list, iq_query
+ * explore received xmlnode, manage collections  
  *------------------------------------------------------------*/
 
 static void
@@ -105,10 +130,11 @@ retrieve_collection(WindowStruct *curr, char *start)
 
     if (!new->with) {
 	purple_debug_misc(PLUGIN_ID, "retrieve_collection :: !new->with\n");
+	g_free(new);
 	return;
     }
 
-    message = g_strdup_printf("<iq id='%s' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", curr->id, curr->xmlns, new->with, new->start);
+    message = g_strdup_printf("<iq id='%s' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>10</max></set></retrieve></iq>", curr->id, curr->xmlns, new->with, new->start);
 
     message_send(message, curr->gtkconv);
 
@@ -206,18 +232,17 @@ iq_list(WindowStruct *curr, xmlnode *xml)
     xmlnode *d = NULL;
     char *with = NULL;
     char *start = NULL;
+    gchar *last = NULL;
 
-    gtk_tree_store_clear(curr->treestore);
-
-    if (curr->coll) {
-	g_list_free(curr->coll);
-	curr->coll = NULL;
-    }
-
-    //if empty collection received and no collection retrieved before 
-    if ( !(xml->child) && !(curr->coll) ) {
-	empty_collection(curr);
-	return;
+    if ( !xml->child ) {
+	if ( !curr->coll ) {
+	    //no collections received and no collections stored before
+	    empty_collection(curr);
+	    return;
+	} else {
+	    //no more collections to retrieve
+	    return;
+	}
     }
 
     for (c = xml->child; c; c = c->next) {
@@ -246,9 +271,12 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 	}
     }
 
-    //retrieve next 100
-    purple_debug_misc(PLUGIN_ID, "IQ_LIST :: houston, i needs more chats :-\(\n");
-    //show_clicked(NULL, curr);
+    //retrieve next 10
+    last = increase_start_time(start);
+    send_iq_list(curr, last);
+    
+    if (strcmp(last, start) != 0)
+	g_free(last);
 }
 
 static void
@@ -257,8 +285,6 @@ iq_pref(WindowStruct *curr, xmlnode *xml)
     xmlnode *c = NULL;
     xmlnode *d = NULL;
     gchar *text = NULL;
-
-    //purple_debug_misc(PLUGIN_ID, "iq_pref :: enter\n");
 
     for (c = xml->child; c; c = c->next) {
 	if (strcmp(c->name, "auto") == 0) {
@@ -280,7 +306,6 @@ iq_pref(WindowStruct *curr, xmlnode *xml)
 	}
     }
 
-    //purple_debug_misc(PLUGIN_ID, "iq_pref :: exit\n");
 }
 
 static void
@@ -290,9 +315,6 @@ iq_query_supported(WindowStruct *curr)
 
     gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported", 0);
-    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
-    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "id = ", 0);
-    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), curr->id, 0);
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
 
     send_pref_info(curr);
@@ -311,18 +333,14 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 
 	    if (strcmp(( c->child)->data, xmlns_prosody) == 0) {
 
-		//purple_debug_misc(PLUGIN_ID, "disco :: PROSODY\n");
 		curr->xmlns = xmlns_prosody;
-
 		iq_query_supported(curr);
 
 		return;
 
 	    } else if (strcmp(( c->child)->data, xmlns_ejabberd) == 0) {
 
-		//purple_debug_misc(PLUGIN_ID, "disco :: EJABBERD\n");
 		curr->xmlns = xmlns_ejabberd;	
-
 		iq_query_supported(curr);
 
 		return;
@@ -412,9 +430,9 @@ xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
     g_free(recipient);
 }
 
-/*------------------------------------------------------------
- * send message, service discovery, list collections
- *------------------------------------------------------------*/
+/*----------------------------------------------------------------------
+ * send message, service discovery, show, enable, disable, status
+ *----------------------------------------------------------------------*/
     
 static void
 message_send(char *message, PidginConversation *gtkconv)
@@ -435,6 +453,48 @@ message_send(char *message, PidginConversation *gtkconv)
 
     if (prpl_info && prpl_info->send_raw != NULL) 
 	    prpl_info->send_raw(gc, message, strlen(message));
+}
+
+static void
+send_iq_list(WindowStruct *curr, gchar *last)
+{
+    PidginConversation *gtkconv = NULL;
+    PurpleConversation *purple_conv = NULL;
+    char *with = NULL;
+    gchar *message = NULL;
+    gchar *start = NULL;
+
+    if (!curr->gtkconv) {
+	purple_debug_misc(PLUGIN_ID, "send_iq_list :: ERR curr->gtkconv\n");
+	return;
+    }
+
+    gtkconv = curr->gtkconv;
+    if (!gtkconv) {
+	purple_debug_misc(PLUGIN_ID, "send_iq_list :: ERR gtkconv\n");
+	return;
+    }
+
+    purple_conv = gtkconv->active_conv;
+    if (!purple_conv) {
+	purple_debug_misc(PLUGIN_ID, "send_iq_list :: ERR purple_conv\n");
+	return;
+    }
+
+    with = purple_conv->name;
+
+    if (last)
+	start = g_strdup_printf(" start='%s' ", last);
+    else
+	start = g_strdup_printf(" ");
+
+    message = g_strdup_printf("<iq id='%s' type='get'><list xmlns='%s' with='%s'%s><set xmlns='http://jabber.org/protocol/rsm'><max>10</max></set></list></iq>", 
+	    curr->id, curr->xmlns, with, start);
+
+    message_send(message, curr->gtkconv);
+    
+    g_free(start);
+    g_free(message);
 }
 
 static void
@@ -460,8 +520,7 @@ disable_clicked(GtkWidget *button, WindowStruct *curr)
 {
     gchar *message = NULL;
 
-    message = g_strdup_printf("<iq type='set' id='%s'><pref xmlns='%s'><auto save='false'/></pref></iq>",
-	    curr->id, curr->xmlns);
+    message = g_strdup_printf("<iq type='set' id='%s'><auto save='false' xmlns='%s'/></iq>", curr->id, curr->xmlns);
 
     message_send(message, curr->gtkconv);
 
@@ -475,8 +534,7 @@ enable_clicked(GtkWidget *button, WindowStruct *curr)
 {
     gchar *message = NULL;
 
-    message = g_strdup_printf("<iq type='set' id='%s'><pref xmlns='%s'><auto save='true'/></pref></iq>",
-	    curr->id, curr->xmlns);
+    message = g_strdup_printf("<iq type='set' id='%s'><auto save='true' xmlns='%s'/></iq>", curr->id, curr->xmlns);
 
     message_send(message, curr->gtkconv);
 
@@ -488,41 +546,20 @@ enable_clicked(GtkWidget *button, WindowStruct *curr)
 static void
 show_clicked(GtkWidget *button, WindowStruct *curr)
 {
-    PidginConversation *gtkconv = NULL;
-    PurpleConversation *purple_conv = NULL;
-    char *with = NULL;
-    gchar *message = NULL;
+    gtk_tree_store_clear(curr->treestore);
 
-    if (!curr->gtkconv) {
-	purple_debug_misc(PLUGIN_ID, "SHOW_CLICKED :: ERR curr->gtkconv\n");
-	return;
+    if (curr->coll) {
+	g_list_free(curr->coll);
+	curr->coll = NULL;
     }
 
-    gtkconv = curr->gtkconv;
-    if (!gtkconv) {
-	purple_debug_misc(PLUGIN_ID, "SHOW_CLICKED :: ERR gtkconv\n");
-	return;
-    }
-
-    purple_conv = gtkconv->active_conv;
-    if (!purple_conv) {
-	purple_debug_misc(PLUGIN_ID, "SHOW_CLICKED :: ERR purple_conv\n");
-	return;
-    }
-
-    with = purple_conv->name;
-    message = g_strdup_printf("<iq id='%s' type='get'><list xmlns='%s' with='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", 
-	    curr->id, curr->xmlns, with);
-
-    message_send(message, curr->gtkconv);
-    
-    g_free(message);
+    send_iq_list(curr, NULL);
 }
 
 static void
 send_disco_info(WindowStruct *curr)
 {  
-    char *server = get_server_name(curr->gtkconv);
+    gchar *server = get_server_name(curr->gtkconv);
     gchar *message = NULL;
 
     if (server == NULL) {
@@ -535,6 +572,7 @@ send_disco_info(WindowStruct *curr)
 
     message_send(message, curr->gtkconv);
     
+    g_free(server);
     g_free(message);
 
 }
@@ -752,6 +790,8 @@ destroy_windows(WindowStruct *curr)
 {
     if (curr->coll)
 	g_list_free(curr->coll);
+
+    g_free(curr->id);
 
     gtk_widget_destroy(curr->window);
 }
