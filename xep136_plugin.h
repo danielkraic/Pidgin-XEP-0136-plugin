@@ -3,6 +3,7 @@
 typedef struct {
     GtkWidget *show_table;
 
+    GtkWidget *label_preferences;
     GtkWidget *label_enable;
     GtkWidget *label_disable;
     GtkWidget *label_status;
@@ -21,6 +22,7 @@ typedef struct {
     GtkWidget *to_year;
 
     GtkWidget *show_button;
+    GtkWidget *reset_button;
 } RightStruct;
 
 typedef struct _WindowStruct {
@@ -45,6 +47,9 @@ typedef struct _WindowStruct {
 
     //conversation
     PidginConversation *gtkconv;
+
+    //indicates end tag in send_iq_list 
+    gboolean end_tag_set;
 
     //xmlns for current server
     char *xmlns;
