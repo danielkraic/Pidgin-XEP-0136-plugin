@@ -26,6 +26,7 @@ static char *xmlns_prosody = "urn:xmpp:archive";
  * misc functions, increase_start_time, get_server_name, find_recipient  
  *--------------------------------------------------------------------------------*/
 
+/* increase start time by one second */
 static gchar *
 increase_start_time(gchar *start)
 {
@@ -566,6 +567,25 @@ enable_clicked(GtkWidget *button, WindowStruct *curr)
     send_disco_info(curr);
 }
 
+static void
+reset_clicked(GtkWidget *button, WindowStruct *curr)
+{
+    RightStruct *s = (RightStruct *) curr->showtable_struct;
+
+    if (!s) {
+	purple_debug_error(PLUGIN_ID, "ERROR: 's': reset_clicked\n");
+	return;
+    }
+
+    gtk_combo_box_set_active(GTK_COMBO_BOX(s->from_year), -1);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(s->from_month), -1);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(s->from_day), -1);
+
+    gtk_combo_box_set_active(GTK_COMBO_BOX(s->to_year), -1);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(s->to_month), -1);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(s->to_day), -1);
+}
+
 static gchar *
 show_clicked_make_to(RightStruct *s)
 {
@@ -624,25 +644,6 @@ show_clicked_make_from(RightStruct *s)
     //purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: from %s\n", from);
 
     return from;
-}
-
-static void
-reset_clicked(GtkWidget *button, WindowStruct *curr)
-{
-    RightStruct *s = (RightStruct *) curr->showtable_struct;
-
-    if (!s) {
-	purple_debug_error(PLUGIN_ID, "ERROR: 's': reset_clicked\n");
-	return;
-    }
-
-    gtk_combo_box_set_active(GTK_COMBO_BOX(s->from_year), -1);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(s->from_month), -1);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(s->from_day), -1);
-
-    gtk_combo_box_set_active(GTK_COMBO_BOX(s->to_year), -1);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(s->to_month), -1);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(s->to_day), -1);
 }
 
 static void

@@ -106,6 +106,9 @@ static void send_pref_info(WindowStruct *curr);
 static void status_clicked(GtkWidget *button, WindowStruct *curr);
 static void disable_clicked(GtkWidget *button, WindowStruct *curr);
 static void enable_clicked(GtkWidget *button, WindowStruct *curr);
+static void reset_clicked(GtkWidget *button, WindowStruct *curr);
+static gchar *show_clicked_make_to(RightStruct *s);
+static gchar *show_clicked_make_from(RightStruct *s);
 static void show_clicked(GtkWidget *button, WindowStruct *curr);
 static void send_disco_info(WindowStruct *curr);
 
