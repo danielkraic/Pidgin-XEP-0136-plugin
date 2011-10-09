@@ -4,12 +4,16 @@
 #define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
 
 #include <string.h>
+#include <stdlib.h>
+
 #include <gtk/gtk.h>
-#include <version.h>
-#include <gtkimhtml.h>
-#include <gtkplugin.h>
-#include <debug.h>
-#include "gtkutils.h"
+
+#include <libpurple/version.h>
+#include <libpurple/debug.h>
+
+#include <pidgin/gtkimhtml.h>
+#include <pidgin/gtkplugin.h>
+#include "pidgin/gtkutils.h"
 
 #include "xep136_plugin.h"
 
@@ -273,7 +277,7 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 
     //retrieve next 10
     last = increase_start_time(start);
-    send_iq_list(curr, last);
+    send_iq_list(curr, last, NULL);
     
     if (strcmp(last, start) != 0)
 	g_free(last);
@@ -456,7 +460,7 @@ message_send(char *message, PidginConversation *gtkconv)
 }
 
 static void
-send_iq_list(WindowStruct *curr, gchar *last)
+send_iq_list(WindowStruct *curr, gchar *from, gchar *to)
 {
     PidginConversation *gtkconv = NULL;
     PurpleConversation *purple_conv = NULL;
@@ -483,8 +487,8 @@ send_iq_list(WindowStruct *curr, gchar *last)
 
     with = purple_conv->name;
 
-    if (last)
-	start = g_strdup_printf(" start='%s' ", last);
+    if (from)
+	start = g_strdup_printf(" start='%s' ", from);
     else
 	start = g_strdup_printf(" ");
 
@@ -543,9 +547,80 @@ enable_clicked(GtkWidget *button, WindowStruct *curr)
     send_disco_info(curr);
 }
 
+/*
+static void
+show_clicked_make_to(RightStruct *s, gchar *to)
+{
+    gint to_day;
+    gint to_month;
+    gint to_year;
+
+    purple_debug_misc(PLUGIN_ID, "show_clicked_make_to :: get_active\n");
+
+    to_year = gtk_combo_box_get_active(GTK_COMBO_BOX(s->to_year));
+    to_month = gtk_combo_box_get_active(GTK_COMBO_BOX(s->to_month));
+    to_day = gtk_combo_box_get_active(GTK_COMBO_BOX(s->to_day));
+
+//    if (!to_day || !to_month || !to_year)
+//	to = NULL;
+//    else
+
+    purple_debug_misc(PLUGIN_ID, "show_clicked_make_to :: g_strdup_printf\n");
+
+    to = g_strdup_printf("%02d-%02d-%02dT00:00:00Z", to_year, to_month, to_day);
+
+    purple_debug_misc(PLUGIN_ID, "show_clicked_make_to :: to %s\n", to);
+}
+
+static void
+show_clicked_make_from(RightStruct *s, gchar *from)
+{
+    gchar *from_day = NULL;
+    gchar *from_month = NULL;
+    gchar *from_year = NULL;
+    gint d, m, y;
+
+    purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: get_active\n");
+
+    from_year = (gchar *) gtk_combo_box_get_active(GTK_COMBO_BOX(s->from_year));
+    from_month = (gchar *) gtk_combo_box_get_active(GTK_COMBO_BOX(s->from_month));
+    from_day = (gchar *) gtk_combo_box_get_active(GTK_COMBO_BOX(s->from_day));
+
+    purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: if\n");
+
+    if (!from_day || !from_month || !from_year)
+	from = NULL;
+    else {
+	purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: atoi\n");
+	d = atoi(from_day);
+	m = atoi(from_month);
+	y = atoi(from_year);
+	
+	purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: g_strdup_printf\n");
+	//from = g_strdup_printf("%02d-%02d-%02dT00:00:00Z", atoi(from_year), atoi(from_month), atoi(from_day));
+	from = g_strdup_printf("%02d-%02d-%02dT00:00:00Z", y, m ,d);
+    }
+
+    purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: from %s\n", from);
+
+}
+*/
+
 static void
 show_clicked(GtkWidget *button, WindowStruct *curr)
 {
+    /*
+    gchar *from = NULL;
+    gchar *to = NULL;
+
+    RightStruct *s = (RightStruct *) curr->showtable_struct;
+
+    if (!s) {
+	purple_debug_error(PLUGIN_ID, "ERROR: 's': show_clicked\n");
+	return;
+    }
+    */
+
     gtk_tree_store_clear(curr->treestore);
 
     if (curr->coll) {
@@ -553,7 +628,22 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
 	curr->coll = NULL;
     }
 
-    send_iq_list(curr, NULL);
+    /*
+    show_clicked_make_from(s, from);
+    show_clicked_make_to(s, to);
+
+    purple_debug_misc(PLUGIN_ID, "show_clicked :: %s %s\n", from, to);
+
+    //send_iq_list(curr, from, to);
+    
+    if (from)
+	g_free(from);
+
+    if (to)
+	g_free(to);
+    */
+
+    send_iq_list(curr, NULL, NULL);
 }
 
 static void
@@ -610,6 +700,104 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
 }
 
 static void
+create_right_table(WindowStruct *history_window)
+{
+    gint i;
+    gchar *text = NULL;
+    RightStruct *s = NULL;
+
+    //create pointer to struct
+    history_window->showtable_struct = g_malloc0(sizeof(RightStruct));
+    s = (RightStruct *) history_window->showtable_struct;
+
+    //create buttons
+    s->enable = gtk_button_new_with_label("Enable");
+    s->disable = gtk_button_new_with_label("Disable");
+    s->status = gtk_button_new_with_label("Status");
+    s->show_button = gtk_button_new_with_label("Show");
+
+    //buttons signals
+    g_signal_connect(G_OBJECT(s->show_button), "clicked",
+	    G_CALLBACK(show_clicked), (gpointer) history_window);
+
+    g_signal_connect(G_OBJECT(s->enable), "clicked",
+	    G_CALLBACK(enable_clicked), (gpointer) history_window);
+
+    g_signal_connect(G_OBJECT(s->disable), "clicked",
+	    G_CALLBACK(disable_clicked), (gpointer) history_window);
+
+    g_signal_connect(G_OBJECT(s->status), "clicked",
+	    G_CALLBACK(status_clicked), (gpointer) history_window);
+
+    //create labels
+    s->label_from = gtk_label_new("From:");
+    s->label_to = gtk_label_new("To:");
+    s->label_enable = gtk_label_new("Enable archiving:");
+    s->label_disable = gtk_label_new("Disable archiving:");
+    s->label_status = gtk_label_new("Show status:");
+
+    //create combo boxes
+    s->from_day = gtk_combo_box_new_text();
+    s->from_month = gtk_combo_box_new_text();
+    s->from_year = gtk_combo_box_new_text();
+
+    s->to_day = gtk_combo_box_new_text();
+    s->to_month = gtk_combo_box_new_text();
+    s->to_year = gtk_combo_box_new_text();
+
+    for (i = 1; i <= 31; i++) {
+	text = g_strdup_printf("%d", i);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->from_day), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->to_day), (gchar *) text);
+	g_free(text);
+    }
+
+    for (i = 1; i <= 12; i++) {
+	text = g_strdup_printf("%d", i);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->from_month), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->to_month), (gchar *) text);
+	g_free(text);
+    }
+
+    for (i = 2000; i <= 2025; i++) {
+	text = g_strdup_printf("%d", i);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->from_year), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->to_year), (gchar *) text);
+	g_free(text);
+    }
+
+    //create table
+    s->show_table = gtk_table_new(8, 3, FALSE);
+
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->label_from,  0, 1, 0, 1);
+
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->from_year,  0, 1, 1, 2);
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->from_month, 1, 2, 1, 2);
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->from_day,   2, 3, 1, 2);
+
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->label_to,  0, 1, 2, 3);
+
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->to_year,  0, 1, 3, 4);
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->to_month, 1, 2, 3, 4);
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->to_day,   2, 3, 3, 4);
+
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->show_button, 2, 3, 4, 5);
+
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->label_enable, 0, 2, 5, 6);
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->enable, 2, 3, 5, 6);
+
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->label_disable, 0, 2, 6, 7);
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->disable, 2, 3, 6, 7);
+
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->label_status, 0, 2, 7, 8);
+    gtk_table_attach_defaults(GTK_TABLE(s->show_table), s->status, 2, 3, 7, 8);
+
+    gtk_table_set_col_spacings(GTK_TABLE(s->show_table), 5);
+    gtk_table_set_row_spacings(GTK_TABLE(s->show_table), 5);
+    gtk_container_set_border_width(GTK_CONTAINER(s->show_table), 5);
+}
+
+static void
 create_left_list(WindowStruct *history_window)
 {
     GtkCellRenderer *rend;
@@ -644,7 +832,7 @@ history_window_create(WindowStruct *history_window)
     PurpleConversation *conv = gtkconv->active_conv;
 
     history_window->window = pidgin_create_window("XEP-136 History", PIDGIN_HIG_BORDER, NULL, TRUE);
-    gtk_window_set_default_size(GTK_WINDOW(history_window->window), 700, 350);
+    gtk_window_set_default_size(GTK_WINDOW(history_window->window), 800, 350);
 
     g_signal_connect(G_OBJECT(history_window->window), "destroy", 
 	    G_CALLBACK(history_window_destroy), (gpointer) history_window );
@@ -660,23 +848,7 @@ history_window_create(WindowStruct *history_window)
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     //right
-    history_window->show = gtk_button_new_with_label("Show");
-    history_window->enable = gtk_button_new_with_label("Enable");
-    history_window->disable = gtk_button_new_with_label("Disable");
-    history_window->status = gtk_button_new_with_label("Status");
-
-    //buttons signals
-    g_signal_connect(G_OBJECT(history_window->show), "clicked",
-	    G_CALLBACK(show_clicked), (gpointer) history_window);
-
-    g_signal_connect(G_OBJECT(history_window->enable), "clicked",
-	    G_CALLBACK(enable_clicked), (gpointer) history_window);
-
-    g_signal_connect(G_OBJECT(history_window->disable), "clicked",
-	    G_CALLBACK(disable_clicked), (gpointer) history_window);
-
-    g_signal_connect(G_OBJECT(history_window->status), "clicked",
-	    G_CALLBACK(status_clicked), (gpointer) history_window);
+    create_right_table(history_window);
 
     //boxing 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
@@ -692,10 +864,10 @@ history_window_create(WindowStruct *history_window)
 	    TRUE, TRUE, 0);*/
 
     //boxing right
-    gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->show, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->enable, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->disable, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->status, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->rightbox), (history_window->showtable_struct)->show_table, FALSE, FALSE, 0);
+    //gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->enable, FALSE, FALSE, 0);
+    //gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->disable, FALSE, FALSE, 0);
+    //gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->status, FALSE, FALSE, 0);
 
     //boxing main
     gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->left, TRUE, TRUE, 0);

@@ -1,5 +1,28 @@
 /* xep136_plugin.h */
 
+typedef struct {
+    GtkWidget *show_table;
+
+    GtkWidget *label_enable;
+    GtkWidget *label_disable;
+    GtkWidget *label_status;
+    GtkWidget *enable;
+    GtkWidget *disable;
+    GtkWidget *status;
+
+    GtkWidget *label_from;
+    GtkWidget *from_day;
+    GtkWidget *from_month;
+    GtkWidget *from_year;
+
+    GtkWidget *label_to;
+    GtkWidget *to_day;
+    GtkWidget *to_month;
+    GtkWidget *to_year;
+
+    GtkWidget *show_button;
+} RightStruct;
+
 typedef struct _WindowStruct {
     GtkWidget *window;
 
@@ -14,10 +37,7 @@ typedef struct _WindowStruct {
     GtkWidget *imhtml_win;
     
     //right
-    GtkWidget *show;
-    GtkWidget *enable;
-    GtkWidget *disable;
-    GtkWidget *status;
+    RightStruct *showtable_struct;
 
     //left
     GtkTreeStore *treestore;
@@ -76,7 +96,7 @@ static void xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer nu
 
 /* send message, service discovery, show, enable, disable, status */
 static void message_send(char *message, PidginConversation *gtkconv);
-static void send_iq_list(WindowStruct *curr, gchar *last);
+static void send_iq_list(WindowStruct *curr, gchar *from, gchar *to);
 static void send_pref_info(WindowStruct *curr);
 static void status_clicked(GtkWidget *button, WindowStruct *curr);
 static void disable_clicked(GtkWidget *button, WindowStruct *curr);
@@ -87,6 +107,7 @@ static void send_disco_info(WindowStruct *curr);
 /* GTK create, destroy, history window */
 static void history_window_destroy(GtkWidget *window, WindowStruct *curr);
 static void date_selected(GtkTreeSelection *sel, WindowStruct *curr);
+static void create_right_table(WindowStruct *history_window);
 static void create_left_list(WindowStruct *history_window);
 static void history_window_create(WindowStruct *history_window);
 static void history_window_open(PidginConversation *gtkconv);
