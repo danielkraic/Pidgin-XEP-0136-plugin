@@ -52,6 +52,29 @@ increase_start_time(gchar *start)
     return new;
 }
 
+static gchar *
+get_friend_username(PidginConversation *gtkconv)
+{
+    PurpleConversation *conv = gtkconv->active_conv;
+
+    if (!conv)
+	return NULL;
+
+    return conv->name;
+}
+static gchar *
+get_my_username(PidginConversation *gtkconv)
+{
+    PurpleConversation *purple_conv = gtkconv->active_conv;
+    PurpleAccount *acc = purple_conv->account;
+    char *username= acc->username;
+
+    if (!acc)
+	return NULL;
+
+    return username;
+}
+
 static gchar * 
 get_server_name(PidginConversation *gtkconv)
 {
@@ -160,7 +183,12 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 	    text = xmlnode_get_data(d);
 
 	    if (text) {
-		from_to = g_strdup_printf("<b><font color='#ffcece'>%s</font></b>", c->name);
+		if (strcmp(c->name, "from") == 0) {
+		    from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", get_my_username(curr->gtkconv));
+		//} else if (strcmp(c->name, "to") == 0) {
+		} else {
+		    from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", get_friend_username(curr->gtkconv));
+		}
 
 		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), from_to, 0);
 		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
@@ -202,7 +230,7 @@ static void
 empty_collection(WindowStruct *curr)
 {
     gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
-    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b><font color='#ffcece'>Empty collection!</font></b><br>", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b><font color='#cc0000'>Empty collection!</font></b><br>", 0);
 }
 
 static void
@@ -219,8 +247,6 @@ add_collection(WindowStruct *curr, gchar *start, gchar *with)
     new->start = g_strdup(start);
     new->with = g_strdup(with);
 
-    //purple_debug_misc(PLUGIN_ID, "add_collection :: %s :: %s\n", new->with, new->start);
-    
     if ( !(new->start) || !(new->with) ) {
 	purple_debug_misc(PLUGIN_ID, "add_collection :: !prepend\n");
 	return;
@@ -303,7 +329,7 @@ iq_pref(WindowStruct *curr, xmlnode *xml)
 	if (strcmp(c->name, "auto") == 0) {
 	    for (d = c->child; d; d = d->next) {
 		if (strcmp(d->name, "save") == 0) {
-		    text = g_strdup_printf("<b><font color='#ffcece'>auto save :: %s</font></b>", d->data);
+		    text = g_strdup_printf("<b><font color='#cc0000'>auto save :: %s</font></b>", d->data);
 
 		    if (!text) {
 			purple_debug_error(PLUGIN_ID, "ERROR: 'iq_pref' !strdup(text)\n");
@@ -327,8 +353,8 @@ iq_query_supported(WindowStruct *curr)
     gtk_widget_set_sensitive(curr->mainbox, TRUE);
 
     gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
-    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "XEP-0136 supported", 0);
-    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b>XEP-0136 supported</b><br />", 0);
+    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
 
     send_pref_info(curr);
 }
@@ -338,6 +364,7 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 {
     xmlnode *c = NULL;
     gboolean feature = FALSE;
+    gchar *error_text = NULL;
 
     for (c = xml->child; c; c = c->next) {
 	if ( (strcmp(c->name, "feature") == 0) && (strcmp( (c->child)->name, "var" ) == 0) ) {
@@ -361,9 +388,13 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 	}
     }
 
-    if (feature)
-	purple_notify_warning(PLUGIN_ID, "XEP-0136 Not Supported!", "XEP-0136 Not Supported!",
-	    "XEP-0136 Message Archiving Not Suppoted!");
+    if (feature) {
+	error_text = g_strdup_printf("XEP-0136 Message Archiving for %s Not Supported!", get_server_name(curr->gtkconv));
+
+	purple_notify_warning(PLUGIN_ID, "XEP-0136 Not Supported!", "XEP-0136 Not Supported!", error_text);
+
+	g_free(error_text);
+    }
 }
 
 static void
@@ -595,9 +626,9 @@ show_clicked_make_to(RightStruct *s)
     gchar *to_year = NULL;
     gint d, m, y;
 
-    to_year = (gchar *) gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(s->to_year));
-    to_month = (gchar *) gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(s->to_month));
-    to_day = (gchar *) gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(s->to_day));
+    to_year = (gchar *) gtk_combo_box_get_active_text(GTK_COMBO_BOX(s->to_year));
+    to_month = (gchar *) gtk_combo_box_get_active_text(GTK_COMBO_BOX(s->to_month));
+    to_day = (gchar *) gtk_combo_box_get_active_text(GTK_COMBO_BOX(s->to_day));
 
     if (!to_day || !to_month || !to_year) {
 	//purple_debug_misc(PLUGIN_ID, "show_clicked_make_to :: !gchars\n");
@@ -611,7 +642,7 @@ show_clicked_make_to(RightStruct *s)
 	to = g_strdup_printf("%02d-%02d-%02dT00:00:00Z", y, m ,d);
     }
 
-    //purple_debug_misc(PLUGIN_ID, "show_clicked_make_to :: to %s\n", to);
+    purple_debug_misc(PLUGIN_ID, "show_clicked_make_to :: to %s\n", to);
 
     return to;
 }
@@ -625,9 +656,9 @@ show_clicked_make_from(RightStruct *s)
     gchar *from_year = NULL;
     gint d, m, y;
 
-    from_year = (gchar *) gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(s->from_year));
-    from_month = (gchar *) gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(s->from_month));
-    from_day = (gchar *) gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(s->from_day));
+    from_year = (gchar *) gtk_combo_box_get_active_text(GTK_COMBO_BOX(s->from_year));
+    from_month = (gchar *) gtk_combo_box_get_active_text(GTK_COMBO_BOX(s->from_month));
+    from_day = (gchar *) gtk_combo_box_get_active_text(GTK_COMBO_BOX(s->from_day));
 
     if (!from_day || !from_month || !from_year) {
 	//purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: !gchars\n");
@@ -641,7 +672,7 @@ show_clicked_make_from(RightStruct *s)
 	from = g_strdup_printf("%02d-%02d-%02dT00:00:00Z", y, m ,d);
     }
 
-    //purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: from %s\n", from);
+    purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: from %s\n", from);
 
     return from;
 }
@@ -672,7 +703,6 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
     purple_debug_misc(PLUGIN_ID, "SHOW_CLICKED :: from: %s to: %s\n", from, to);
 
     send_iq_list(curr, from, to);
-    //send_iq_list(curr, NULL, NULL);
     
     if (from)
 	g_free(from);
@@ -727,8 +757,6 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
 
     gtk_tree_model_get(model, &iter, 0, &date, -1);
 
-    //purple_debug_misc(PLUGIN_ID, "date_selected :: %s\n", date);
-
     retrieve_collection(curr, date);
 
     g_free(date);
@@ -769,40 +797,40 @@ create_right_table(WindowStruct *history_window)
 	    G_CALLBACK(status_clicked), (gpointer) history_window);
 
     //create labels
-    s->label_from = gtk_label_new("From:");
-    s->label_to = gtk_label_new("To:");
+    s->label_from = gtk_label_new("Date from:");
+    s->label_to = gtk_label_new("Date to:");
     s->label_enable = gtk_label_new("Enable archiving:");
     s->label_disable = gtk_label_new("Disable archiving:");
     s->label_status = gtk_label_new("Show status:");
     s->label_preferences = gtk_label_new("\n\nXEP-0136 preferences:");
 
     //create combo boxes
-    s->from_day = gtk_combo_box_text_new();
-    s->from_month = gtk_combo_box_text_new();
-    s->from_year = gtk_combo_box_text_new();
+    s->from_day = gtk_combo_box_new_text();
+    s->from_month = gtk_combo_box_new_text();
+    s->from_year = gtk_combo_box_new_text();
 
-    s->to_day = gtk_combo_box_text_new();
-    s->to_month = gtk_combo_box_text_new();
-    s->to_year = gtk_combo_box_text_new();
+    s->to_day = gtk_combo_box_new_text();
+    s->to_month = gtk_combo_box_new_text();
+    s->to_year = gtk_combo_box_new_text();
 
     for (i = 1; i <= 31; i++) {
 	text = g_strdup_printf("%d", i);
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(s->from_day), (gchar *) text);
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(s->to_day), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->from_day), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->to_day), (gchar *) text);
 	g_free(text);
     }
 
     for (i = 1; i <= 12; i++) {
 	text = g_strdup_printf("%d", i);
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(s->from_month), (gchar *) text);
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(s->to_month), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->from_month), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->to_month), (gchar *) text);
 	g_free(text);
     }
 
-    for (i = 2000; i <= 2025; i++) {
+    for (i = 2000; i <= 2015; i++) {
 	text = g_strdup_printf("%d", i);
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(s->from_year), (gchar *) text);
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(s->to_year), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->from_year), (gchar *) text);
+	gtk_combo_box_append_text(GTK_COMBO_BOX(s->to_year), (gchar *) text);
 	g_free(text);
     }
 
@@ -870,9 +898,7 @@ create_left_list(WindowStruct *history_window)
 static void
 history_window_create(WindowStruct *history_window)
 {
-    //history_window = g_new0(WindowStruct, 1);
-    PidginConversation *gtkconv = history_window->gtkconv;
-    PurpleConversation *conv = gtkconv->active_conv;
+    gchar *username_text;
 
     history_window->window = pidgin_create_window("XEP-136 History", PIDGIN_HIG_BORDER, NULL, TRUE);
     gtk_window_set_default_size(GTK_WINDOW(history_window->window), 800, 350);
@@ -880,14 +906,21 @@ history_window_create(WindowStruct *history_window)
     g_signal_connect(G_OBJECT(history_window->window), "destroy", 
 	    G_CALLBACK(history_window_destroy), (gpointer) history_window );
 
+    //vbox
+    history_window->vbox = gtk_vbox_new(FALSE, 3);
+
+    //label
+    username_text = g_strdup_printf("<span size='larger' weight='bold'>History for %s</span>", get_friend_username(history_window->gtkconv));
+    history_window->label_username = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(history_window->label_username), username_text);
+    gtk_misc_set_alignment(GTK_MISC(history_window->label_username), 0, 0);
+
     //left
     create_left_list(history_window);
 
     //center
-    history_window->label_username = gtk_label_new(conv->name);
     history_window->imhtml = gtk_imhtml_new(NULL, NULL);
     history_window->imhtml_win = gtk_scrolled_window_new(0, 0);
-    //gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_SHADOW_IN);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
     //right
@@ -895,22 +928,16 @@ history_window_create(WindowStruct *history_window)
 
     //boxing 
     history_window->mainbox = gtk_hbox_new(FALSE, 3);
-    history_window->center= gtk_vbox_new(FALSE, 3);
+    history_window->center = gtk_vbox_new(FALSE, 3);
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
 
     //boxing center 
     gtk_container_add(GTK_CONTAINER(history_window->imhtml_win), history_window->imhtml);
-    gtk_box_pack_start(GTK_BOX(history_window->center), history_window->label_username, FALSE, FALSE, 0);
+    //gtk_box_pack_start(GTK_BOX(history_window->center), history_window->label_username, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->center), history_window->imhtml_win, TRUE, TRUE, 0);
-    /*gtk_box_pack_start(GTK_BOX(history_window->center), 
-	    pidgin_make_scrollable(history_window->imhtml, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC, GTK_SHADOW_ETCHED_IN, -1, -1), 
-	    TRUE, TRUE, 0);*/
-
+    
     //boxing right
-    gtk_box_pack_start(GTK_BOX(history_window->rightbox), (history_window->showtable_struct)->show_table, FALSE, FALSE, 0);
-    //gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->enable, FALSE, FALSE, 0);
-    //gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->disable, FALSE, FALSE, 0);
-    //gtk_box_pack_start(GTK_BOX(history_window->rightbox), history_window->status, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->rightbox), (history_window->showtable_struct)->show_table, TRUE, TRUE, 0);
 
     //boxing main
     gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->left, TRUE, TRUE, 0);
@@ -919,8 +946,14 @@ history_window_create(WindowStruct *history_window)
 
     gtk_widget_set_sensitive(history_window->mainbox, FALSE);
 
-    gtk_container_add(GTK_CONTAINER(history_window->window), history_window->mainbox);
+    //boxing vbox
+    gtk_box_pack_start(GTK_BOX(history_window->vbox), history_window->label_username, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->vbox), history_window->mainbox, TRUE, TRUE, 0);
+
+    gtk_container_add(GTK_CONTAINER(history_window->window), history_window->vbox);
     gtk_widget_show_all(history_window->window);
+
+    g_free(username_text);
 }
 
 static void
@@ -969,8 +1002,6 @@ history_button_clicked(GtkWidget *button, PidginConversation *gtkconv)
 
     g_free(test);
 
-    //purple_debug_misc(PLUGIN_ID, "test included :: FALSE\n");
-
     history_window_open(gtkconv);
 }
 
@@ -991,12 +1022,10 @@ if_jabber(PidginConversation *gtkconv)
     }
 
     // test jabber conversation
-    if (g_strcmp0(jabber_id, purple_account_get_protocol_id(acc))) {
-	//purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: TRUE\n");
-	return TRUE;
-    } else {
-	//purple_debug_misc(PLUGIN_ID, "prpl-jabber check:: FALSE\n");
+    if (strcmp(jabber_id, purple_account_get_protocol_id(acc)) == 0) {
 	return FALSE;
+    } else {
+	return TRUE;
     }
 }
 

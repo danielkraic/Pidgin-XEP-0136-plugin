@@ -28,13 +28,15 @@ typedef struct {
 typedef struct _WindowStruct {
     GtkWidget *window;
 
+    GtkWidget *vbox;
+    GtkWidget *label_username;
     GtkWidget *mainbox;
+
     GtkWidget *left;
     GtkWidget *center;
     GtkWidget *rightbox;
 
     //center
-    GtkWidget *label_username;
     GtkWidget *imhtml;
     GtkWidget *imhtml_win;
     
@@ -81,6 +83,7 @@ typedef struct {
 
 /* misc functions, increase_start_time, get_server_name, find_recipient */
 static gchar * increase_start_time(gchar *start);
+static gchar * get_my_username(PidginConversation *gtkconv);
 static gchar * get_server_name(PidginConversation *gtkconv);
 static void find_recipient(WindowStruct *curr, Recipient_info *recipient);
 
