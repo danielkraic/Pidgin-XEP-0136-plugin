@@ -39,11 +39,16 @@ typedef struct _WindowStruct {
     //center
     GtkWidget *imhtml;
     GtkWidget *imhtml_win;
+    GtkWidget *center_hbox;
+    GtkWidget *search_label;
+    GtkWidget *search_entry;
+    GtkWidget *search_button;
     
     //right
     RightStruct *showtable_struct;
 
     //left
+    GtkWidget *left_scrolled;
     GtkTreeStore *treestore;
     GtkWidget *treeview;
 

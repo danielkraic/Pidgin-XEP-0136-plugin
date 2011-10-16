@@ -884,15 +884,18 @@ create_left_list(WindowStruct *history_window)
     gtk_tree_view_append_column (GTK_TREE_VIEW(history_window->treeview), col);
     gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (history_window->treeview), FALSE);
 
-    history_window->left = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->left),
+    history_window->left_scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->left_scrolled),
 	    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_container_add(GTK_CONTAINER(history_window->left), history_window->treeview);
+    gtk_container_add(GTK_CONTAINER(history_window->left_scrolled), history_window->treeview);
 
     sel = gtk_tree_view_get_selection(GTK_TREE_VIEW (history_window->treeview));
     gtk_tree_selection_set_mode(sel, GTK_SELECTION_SINGLE);
+
     g_signal_connect (G_OBJECT (sel), "changed",
 	    G_CALLBACK (date_selected), (gpointer) history_window);
+
+    gtk_widget_set_size_request(GTK_WIDGET(history_window->left_scrolled), 240, -1);
 }
 
 static void
@@ -923,21 +926,34 @@ history_window_create(WindowStruct *history_window)
     history_window->imhtml_win = gtk_scrolled_window_new(0, 0);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(history_window->imhtml_win), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
+    history_window->center_hbox = gtk_hbox_new(FALSE, 5);
+    history_window->search_label = gtk_label_new("Search:");
+    history_window->search_entry = gtk_entry_new();
+    history_window->search_button = gtk_button_new_from_stock(GTK_STOCK_FIND);
+
     //right
     create_right_table(history_window);
 
     //boxing 
-    history_window->mainbox = gtk_hbox_new(FALSE, 3);
+    history_window->mainbox = gtk_hbox_new(FALSE, 10);
+    history_window->left = gtk_vbox_new(FALSE, 3);
     history_window->center = gtk_vbox_new(FALSE, 3);
     history_window->rightbox = gtk_vbox_new(FALSE, 3);
 
+    //boxing left
+    gtk_box_pack_start(GTK_BOX(history_window->left), history_window->left_scrolled, TRUE, TRUE, 0);
+
     //boxing center 
+    gtk_box_pack_start(GTK_BOX(history_window->center_hbox), history_window->search_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->center_hbox), history_window->search_entry, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->center_hbox), history_window->search_button, FALSE, FALSE, 0);
+
     gtk_container_add(GTK_CONTAINER(history_window->imhtml_win), history_window->imhtml);
-    //gtk_box_pack_start(GTK_BOX(history_window->center), history_window->label_username, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->center), history_window->imhtml_win, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->center), history_window->center_hbox, FALSE, FALSE, 0);
     
     //boxing right
-    gtk_box_pack_start(GTK_BOX(history_window->rightbox), (history_window->showtable_struct)->show_table, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->rightbox), (history_window->showtable_struct)->show_table, TRUE, FALSE, 0);
 
     //boxing main
     gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->left, TRUE, TRUE, 0);
@@ -1023,9 +1039,9 @@ if_jabber(PidginConversation *gtkconv)
 
     // test jabber conversation
     if (strcmp(jabber_id, purple_account_get_protocol_id(acc)) == 0) {
-	return FALSE;
-    } else {
 	return TRUE;
+    } else {
+	return FALSE;
     }
 }
 
@@ -1067,7 +1083,7 @@ conv_deleted(PurpleConversation *conv, gpointer null)
 	return;
     }
 
-    if (if_jabber(gtkconv))
+    if (!if_jabber(gtkconv))
 	return;
 
     g_list_foreach(list, (GFunc) destroy_history_window, (gpointer) gtkconv);
@@ -1078,7 +1094,7 @@ detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
     GtkWidget *toolbar_box, *hbox;
 
-    if (if_jabber(gtkconv))
+    if (!if_jabber(gtkconv))
 	return;
 
     toolbar_box = gtkconv->toolbar;
@@ -1096,7 +1112,7 @@ attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
     GtkWidget *toolbar_box, *hbox, *button;
 
-    if (if_jabber(gtkconv))
+    if (!if_jabber(gtkconv))
 	return;
 
     toolbar_box = gtkconv->toolbar;
