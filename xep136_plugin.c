@@ -27,6 +27,44 @@ static char *xmlns_prosody = "urn:xmpp:archive";
  * misc functions, increase_start_time, get_server_name, find_recipient 
  *--------------------------------------------------------------------------------*/
 
+gchar * make_pretty_date(gchar *raw)
+{
+    gchar *pretty;
+    char date_ptr[11];
+    char time_ptr[9];
+
+    strncpy(date_ptr, raw, 10); 
+    strncpy(time_ptr, (raw + 11), 8); 
+
+    date_ptr[10] = '\0';
+    time_ptr[8] = '\0';
+
+    pretty = (gchar *) g_strdup_printf("%s %s", (gchar *) date_ptr, (gchar *) time_ptr);
+
+    //purple_debug_misc(PLUGIN_ID, "make_pretty_date :: %s\n", pretty);
+
+    return pretty;
+}
+
+gchar * make_raw_date(gchar *pretty)
+{
+    gchar *raw;
+    char date_ptr[11];
+    char time_ptr[9];
+
+    strncpy(date_ptr, pretty, 10); 
+    strncpy(time_ptr, (pretty + 11), 8); 
+
+    date_ptr[10] = '\0';
+    time_ptr[8] = '\0';
+
+    raw = (gchar *) g_strdup_printf("%sT%sZ", (gchar *) date_ptr, (gchar *) time_ptr);
+
+    //purple_debug_misc(PLUGIN_ID, "make_raw_date :: %s\n", raw);
+
+    return raw;
+}
+
 //increase start time by one second
 static gchar *
 increase_start_time(gchar *start)
@@ -150,7 +188,9 @@ get_curr_year(void)
 static void
 send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
 {
-    if (strcmp(coll->start, new->start) == 0) {
+    if (strncmp(coll->start, new->start, 19) == 0) {
+	//purple_debug_misc(PLUGIN_ID, " send_propher_name :: %s\n", coll->start);
+	//purple_debug_misc(PLUGIN_ID, " send_propher_name :: %s\n", new->start);
 	new->with = coll->with;
     }
 }
@@ -286,6 +326,7 @@ iq_list(WindowStruct *curr, xmlnode *xml)
     char *with = NULL;
     char *start = NULL;
     gchar *last = NULL;
+    gchar *pretty_start = NULL;
 
     if ( !xml->child ) {
 	if ( !curr->coll ) {
@@ -316,18 +357,28 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 		    with = d->data;
 		}
 	    }
-	    
+
 	    add_collection(curr, (gchar *) start, (gchar *) with);
 
+	    pretty_start = make_pretty_date( (gchar *) start);
+	    
 	    gtk_tree_store_append(curr->treestore, &iter, NULL);
-	    gtk_tree_store_set(curr->treestore, &iter, 0, start, -1);
+
+	    if (!pretty_start) {
+		gtk_tree_store_set(curr->treestore, &iter, 0, start, -1);
+	    } else {
+		gtk_tree_store_set(curr->treestore, &iter, 0, pretty_start, -1);
+		g_free(pretty_start);
+	    }
 	}
     }
 
+    /*
     if (curr->end_tag_set)
 	purple_debug_misc(PLUGIN_ID, "iq_list :: end_tag_set TRUE\n");
     else
 	purple_debug_misc(PLUGIN_ID, "iq_list :: end_tag_set FALSE\n");
+    */
 
     if (!curr->end_tag_set) {
 	//retrieve next 100
@@ -443,16 +494,16 @@ explore_xml(WindowStruct *curr, xmlnode *xml)
 
     for (c = xml->child; c; c = c->next) {
 	if (strcmp(c->name, "query") == 0) {
-	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_query\n");
+	    //purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_query\n");
 	    iq_query(curr, c);
 	} else if (strcmp(c->name, "list") == 0) {
-	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_list\n");
+	    //purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_list\n");
 	    iq_list(curr, c);
 	} else if (strcmp(c->name, "chat") == 0) {
-	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_chat\n");
+	    //purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_chat\n");
 	    iq_retrieve(curr, c);
 	} else if (strcmp(c->name, "pref") == 0) {
-	    purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_pref\n");
+	    //purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_pref\n");
 	    iq_pref(curr, c);
 	}
     }
@@ -488,7 +539,7 @@ xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
 	    }
 	}
 
-	purple_debug_misc(PLUGIN_ID, "xmlnode_received :: id=%s\n", recipient->id);
+	//purple_debug_misc(PLUGIN_ID, "xmlnode_received :: id=%s\n", recipient->id);
 
 	g_list_foreach(list, (GFunc) find_recipient, (gpointer) recipient);
     }
@@ -664,7 +715,7 @@ show_clicked_make_to(RightStruct *s)
 	to = g_strdup_printf("%02d-%02d-%02dT00:00:00Z", y, m ,d);
     }
 
-    purple_debug_misc(PLUGIN_ID, "show_clicked_make_to :: to %s\n", to);
+    //purple_debug_misc(PLUGIN_ID, "show_clicked_make_to :: to %s\n", to);
 
     return to;
 }
@@ -771,6 +822,7 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
     GtkTreeIter iter;
     GtkTreeModel *model;
     gchar *date = NULL;
+    gchar *date_raw = NULL;
 
     if (!gtk_tree_selection_get_selected(sel, &model, &iter)) {
 	purple_debug_misc(PLUGIN_ID, "date_selected :: !gtk_tree_selection_get_selected\n");
@@ -779,9 +831,18 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
 
     gtk_tree_model_get(model, &iter, 0, &date, -1);
 
-    retrieve_collection(curr, date);
+    date_raw = make_raw_date(date);
+    
+    if (!date_raw) {
+	purple_debug_misc(PLUGIN_ID, "date_selected :: !date_raw\n");
+	g_free(date);
+	return;
+    }
+
+    retrieve_collection(curr, date_raw);
 
     g_free(date);
+    g_free(date_raw);
 }
 
 static void
@@ -940,7 +1001,7 @@ create_left_list(WindowStruct *history_window)
     g_signal_connect (G_OBJECT (sel), "changed",
 	    G_CALLBACK (date_selected), (gpointer) history_window);
 
-    gtk_widget_set_size_request(GTK_WIDGET(history_window->left_scrolled), 240, -1);
+    gtk_widget_set_size_request(GTK_WIDGET(history_window->left_scrolled), 120, -1);
 }
 
 static void
@@ -1062,7 +1123,7 @@ history_button_clicked(GtkWidget *button, PidginConversation *gtkconv)
 
     if (test->included == TRUE) {
 	g_free(test);
-	purple_debug_misc(PLUGIN_ID, "test included :: TRUE\n");
+	//purple_debug_misc(PLUGIN_ID, "test included :: TRUE\n");
 	return;
     }
 
