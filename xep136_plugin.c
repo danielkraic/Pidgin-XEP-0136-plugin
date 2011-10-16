@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <gtk/gtk.h>
 
@@ -23,10 +24,10 @@ static char *xmlns_ejabberd = "http://www.xmpp.org/extensions/xep-0136.html#ns";
 static char *xmlns_prosody = "urn:xmpp:archive";
 
 /*--------------------------------------------------------------------------------
- * misc functions, increase_start_time, get_server_name, find_recipient  
+ * misc functions, increase_start_time, get_server_name, find_recipient 
  *--------------------------------------------------------------------------------*/
 
-/* increase start time by one second */
+//increase start time by one second
 static gchar *
 increase_start_time(gchar *start)
 {
@@ -62,6 +63,7 @@ get_friend_username(PidginConversation *gtkconv)
 
     return conv->name;
 }
+
 static gchar *
 get_my_username(PidginConversation *gtkconv)
 {
@@ -113,13 +115,33 @@ find_recipient(WindowStruct *curr, Recipient_info *recipient)
     if (recipient->match == TRUE)
 	return;
 
-    purple_debug_misc(PLUGIN_ID, "find_recipient :: curr->id=%s recipient->id=%s\n", curr->id, recipient->id);
+    //purple_debug_misc(PLUGIN_ID, "find_recipient :: curr->id=%s recipient->id=%s\n", curr->id, recipient->id);
 
     if (strcmp(curr->id, recipient->id) == 0) {
 	recipient->match = TRUE;
     	explore_xml(curr, recipient->xml);
     }
 }
+
+//get current year
+static int
+get_curr_year(void)
+{
+    struct tm curr_time;
+    time_t raw;
+    int year;
+
+    time(&raw);
+
+    localtime_r(&raw, &curr_time);
+
+    year = (int) (1900 + (int) curr_time.tm_year);
+
+    //purple_debug_misc(PLUGIN_ID, "get_curr_year :: %d\n", year);
+
+    return year;
+}
+
 
 /*------------------------------------------------------------
  * explore received xmlnode, manage collections  
@@ -157,7 +179,7 @@ retrieve_collection(WindowStruct *curr, char *start)
     g_list_foreach(curr->coll, (GFunc) send_propher_name, (gpointer) new);
 
     if (!new->with) {
-	purple_debug_misc(PLUGIN_ID, "retrieve_collection :: !new->with\n");
+	purple_debug_error(PLUGIN_ID, "retrieve_collection :: !new->with\n");
 	g_free(new);
 	return;
     }
@@ -672,7 +694,7 @@ show_clicked_make_from(RightStruct *s)
 	from = g_strdup_printf("%02d-%02d-%02dT00:00:00Z", y, m ,d);
     }
 
-    purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: from %s\n", from);
+    //purple_debug_misc(PLUGIN_ID, "show_clicked_make_from :: from %s\n", from);
 
     return from;
 }
@@ -700,7 +722,7 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
     from = show_clicked_make_from(s);
     to = show_clicked_make_to(s);
 
-    purple_debug_misc(PLUGIN_ID, "SHOW_CLICKED :: from: %s to: %s\n", from, to);
+    //purple_debug_misc(PLUGIN_ID, "SHOW_CLICKED :: from: %s to: %s\n", from, to);
 
     send_iq_list(curr, from, to);
     
@@ -763,9 +785,25 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
 }
 
 static void
+search_clicked(GtkWidget *button, WindowStruct *curr)
+{
+    gchar *search_text = NULL;
+
+    search_text = (gchar *) gtk_entry_get_text(GTK_ENTRY(curr->search_entry));
+
+    if ( (!search_text) || (strlen(search_text) == 0) ) {
+	purple_debug_misc(PLUGIN_ID, "search_clicked :: !search_text\n");
+	return;
+    }
+
+    gtk_imhtml_search_find(GTK_IMHTML(curr->imhtml), search_text);
+}
+
+static void
 create_right_table(WindowStruct *history_window)
 {
-    gint i;
+    int i;
+    int curr_year = 0;
     gchar *text = NULL;
     RightStruct *s = NULL;
 
@@ -827,7 +865,14 @@ create_right_table(WindowStruct *history_window)
 	g_free(text);
     }
 
-    for (i = 2000; i <= 2015; i++) {
+    curr_year = get_curr_year();
+
+    if (curr_year == 0) {
+	curr_year = 2025;
+	purple_debug_misc(PLUGIN_ID, "get_curr_year :: year = 2025\n");
+    }
+
+    for (i = 2004; i <= curr_year; i++) {
 	text = g_strdup_printf("%d", i);
 	gtk_combo_box_append_text(GTK_COMBO_BOX(s->from_year), (gchar *) text);
 	gtk_combo_box_append_text(GTK_COMBO_BOX(s->to_year), (gchar *) text);
@@ -930,6 +975,11 @@ history_window_create(WindowStruct *history_window)
     history_window->search_label = gtk_label_new("Search:");
     history_window->search_entry = gtk_entry_new();
     history_window->search_button = gtk_button_new_from_stock(GTK_STOCK_FIND);
+
+    g_signal_connect(GTK_ENTRY(history_window->search_entry), "activate", 
+	    G_CALLBACK(search_clicked), history_window);
+    g_signal_connect(GTK_ENTRY(history_window->search_button), "clicked", 
+	    G_CALLBACK(search_clicked), history_window);
 
     //right
     create_right_table(history_window);

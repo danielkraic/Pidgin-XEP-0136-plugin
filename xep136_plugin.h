@@ -23,6 +23,7 @@ typedef struct {
 
     GtkWidget *show_button;
     GtkWidget *reset_button;
+
 } RightStruct;
 
 typedef struct _WindowStruct {
@@ -91,9 +92,9 @@ static gchar * increase_start_time(gchar *start);
 static gchar * get_my_username(PidginConversation *gtkconv);
 static gchar * get_server_name(PidginConversation *gtkconv);
 static void find_recipient(WindowStruct *curr, Recipient_info *recipient);
+static int get_curr_year(void);
 
 /* explore received xmlnode, manage collections */
-
 static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
 static void retrieve_collection(WindowStruct *curr, char *start);
 static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d);
