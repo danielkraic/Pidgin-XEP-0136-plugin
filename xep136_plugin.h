@@ -88,6 +88,8 @@ typedef struct {
 } Recipient_info;
 
 /* misc functions, increase_start_time, get_server_name, find_recipient */
+static gchar * make_pretty_date(gchar *raw);
+static gchar * make_raw_date(gchar *pretty);
 static gchar * increase_start_time(gchar *start);
 static gchar * get_my_username(PidginConversation *gtkconv);
 static gchar * get_server_name(PidginConversation *gtkconv);

@@ -18,16 +18,22 @@
 
 #include "xep136_plugin.h"
 
-static PurplePlugin *xep136 = NULL;
-static GList *list = NULL;
+
+static PurplePlugin *xep136 = NULL; 	/* plugin id pointer */
+static GList *list = NULL;		/* list of pointers to WindowStruct */
+
+/* xmlns for ejabberd and prosody to xml messages */
 static char *xmlns_ejabberd = "http://www.xmpp.org/extensions/xep-0136.html#ns";
 static char *xmlns_prosody = "urn:xmpp:archive";
 
 /*--------------------------------------------------------------------------------
- * misc functions, increase_start_time, get_server_name, find_recipient 
+ * misc functions: increase_start_time, get_server_name, find_recipient, ...
  *--------------------------------------------------------------------------------*/
 
-gchar * make_pretty_date(gchar *raw)
+/* return pretty date from raw date
+ * example: return 2011-10-18 15:41:05 from 2011-10-18-T15:41:0500000Z */
+static gchar * 
+make_pretty_date(gchar *raw)
 {
     gchar *pretty;
     char date_ptr[11];
@@ -46,7 +52,10 @@ gchar * make_pretty_date(gchar *raw)
     return pretty;
 }
 
-gchar * make_raw_date(gchar *pretty)
+/* return raw date from pretty date
+ * example: return 2011-10-18-T15:41:05Z from 2011-10-18 15:41:05 */
+static gchar * 
+make_raw_date(gchar *pretty)
 {
     gchar *raw;
     char date_ptr[11];
@@ -65,7 +74,7 @@ gchar * make_raw_date(gchar *pretty)
     return raw;
 }
 
-//increase start time by one second
+/* increase start time by one second */
 static gchar *
 increase_start_time(gchar *start)
 {
@@ -91,6 +100,7 @@ increase_start_time(gchar *start)
     return new;
 }
 
+/* return friend's username (jid) from conversation */
 static gchar *
 get_friend_username(PidginConversation *gtkconv)
 {
@@ -102,6 +112,7 @@ get_friend_username(PidginConversation *gtkconv)
     return conv->name;
 }
 
+/* return user's username (jid) from PurpleAccount */
 static gchar *
 get_my_username(PidginConversation *gtkconv)
 {
@@ -115,6 +126,7 @@ get_my_username(PidginConversation *gtkconv)
     return username;
 }
 
+/* return server name from users's jid from PurpleAccount */
 static gchar * 
 get_server_name(PidginConversation *gtkconv)
 {
@@ -147,6 +159,7 @@ get_server_name(PidginConversation *gtkconv)
     return server;
 }
 
+/* find users match from xmpp message id */
 static void
 find_recipient(WindowStruct *curr, Recipient_info *recipient)
 {
@@ -161,7 +174,7 @@ find_recipient(WindowStruct *curr, Recipient_info *recipient)
     }
 }
 
-//get current year
+/* return current year as int */
 static int
 get_curr_year(void)
 {
@@ -185,6 +198,7 @@ get_curr_year(void)
  * explore received xmlnode, manage collections  
  *------------------------------------------------------------*/
 
+/* compare start time to set exact jid to xml message */
 static void
 send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
 {
@@ -195,6 +209,7 @@ send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
     }
 }
 
+/* retrieve a collection */
 static void
 retrieve_collection(WindowStruct *curr, char *start)
 {
@@ -207,6 +222,7 @@ retrieve_collection(WindowStruct *curr, char *start)
 	return;
     }
 
+    /* create new struct */
     new = g_malloc0(sizeof(RetrieveCollection));
     if (!new) {
 	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
@@ -216,6 +232,7 @@ retrieve_collection(WindowStruct *curr, char *start)
     new->start = start;
     new->with = NULL;
 
+    /* to set exact jid */
     g_list_foreach(curr->coll, (GFunc) send_propher_name, (gpointer) new);
 
     if (!new->with) {
@@ -233,6 +250,7 @@ retrieve_collection(WindowStruct *curr, char *start)
     g_free(new);
 }
 
+/* explore body of iq retrieve message */
 static void
 iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 {
@@ -242,8 +260,10 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 
     if (d->child) {
 	if (body->data) {
+	    /* save data from body */
 	    text = xmlnode_get_data(d);
 
+	    /* create line to imhtml */
 	    if (text) {
 		if (strcmp(c->name, "from") == 0) {
 		    from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", get_my_username(curr->gtkconv));
@@ -252,6 +272,7 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 		    from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", get_friend_username(curr->gtkconv));
 		}
 
+	    	/* write to imhtml */
 		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), from_to, 0);
 		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
 		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), text, 0);
@@ -266,6 +287,7 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
     }
 }
 
+/* explore iq retrieve message */
 static void
 iq_retrieve(WindowStruct *curr, xmlnode *xml)
 {
@@ -288,6 +310,7 @@ iq_retrieve(WindowStruct *curr, xmlnode *xml)
     }
 }
 
+/* handle empty collection */
 static void
 empty_collection(WindowStruct *curr)
 {
@@ -295,6 +318,7 @@ empty_collection(WindowStruct *curr)
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b><font color='#cc0000'>Empty collection!</font></b><br>", 0);
 }
 
+/* add collection to collections list */
 static void
 add_collection(WindowStruct *curr, gchar *start, gchar *with)
 {
@@ -317,6 +341,7 @@ add_collection(WindowStruct *curr, gchar *start, gchar *with)
     curr->coll = g_list_prepend(curr->coll, new);
 }
 
+/* explore iq list message */
 static void
 iq_list(WindowStruct *curr, xmlnode *xml)
 {
@@ -328,17 +353,19 @@ iq_list(WindowStruct *curr, xmlnode *xml)
     gchar *last = NULL;
     gchar *pretty_start = NULL;
 
+    /* handle empty collection */
     if ( !xml->child ) {
 	if ( !curr->coll ) {
-	    //no collections received and no collections stored before
+	    /* no collection received and no collection stored before */
 	    empty_collection(curr);
 	    return;
 	} else {
-	    //no more collections to retrieve
+	    /* no more collections to retrieve */
 	    return;
 	}
     }
 
+    /* find "start" and "date" */
     for (c = xml->child; c; c = c->next) {
 	if (strcmp(c->name, "chat") == 0) {
 	    for (d = c->child; d; d = d->next) {
@@ -358,10 +385,13 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 		}
 	    }
 
+	    /* save collection with raw date */
 	    add_collection(curr, (gchar *) start, (gchar *) with);
 
+	    /* make pretty date */
 	    pretty_start = make_pretty_date( (gchar *) start);
 	    
+	    /* append to tree_store with pretty date */
 	    gtk_tree_store_append(curr->treestore, &iter, NULL);
 
 	    if (!pretty_start) {
@@ -380,17 +410,17 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 	purple_debug_misc(PLUGIN_ID, "iq_list :: end_tag_set FALSE\n");
     */
 
+    /* if end tag is not set, retrieve next 100 collections */
     if (!curr->end_tag_set) {
-	//retrieve next 100
 	last = increase_start_time(start);
 	send_iq_list(curr, last, NULL);
     }
     
-    //if (strcmp(last, start) != 0)
     if (last) 
 	g_free(last);
 }
 
+/* explore iq preferences massage */
 static void
 iq_pref(WindowStruct *curr, xmlnode *xml)
 {
@@ -402,6 +432,8 @@ iq_pref(WindowStruct *curr, xmlnode *xml)
 	if (strcmp(c->name, "auto") == 0) {
 	    for (d = c->child; d; d = d->next) {
 		if (strcmp(d->name, "save") == 0) {
+
+		    /* write auto save status to imhtml */
 		    text = g_strdup_printf("<b><font color='#cc0000'>auto save :: %s</font></b>", d->data);
 
 		    if (!text) {
@@ -420,18 +452,20 @@ iq_pref(WindowStruct *curr, xmlnode *xml)
 
 }
 
+/* write "xep-0136 supported" message to imhtml */
 static void
 iq_query_supported(WindowStruct *curr)
 {
     gtk_widget_set_sensitive(curr->mainbox, TRUE);
 
     gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
-    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b>XEP-0136 supported</b><br />", 0);
-    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b>XEP-0136 supported!</b><br />", 0);
 
+    /* send message to determine preferences */
     send_pref_info(curr);
 }
 
+/* explore iq query message */
 static void
 iq_query(WindowStruct *curr, xmlnode *xml)
 {
@@ -444,6 +478,7 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 	    if (!feature)
 		feature = TRUE;
 
+	    /* find xep-0139 support with xmlns_prosody */
 	    if (strcmp(( c->child)->data, xmlns_prosody) == 0) {
 
 		curr->xmlns = xmlns_prosody;
@@ -451,6 +486,7 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 
 		return;
 
+	    /* find xep-0139 support with xmlns_ejabberd */
 	    } else if (strcmp(( c->child)->data, xmlns_ejabberd) == 0) {
 
 		curr->xmlns = xmlns_ejabberd;	
@@ -461,6 +497,7 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 	}
     }
 
+    /* warning dialog with "not supported" message */
     if (feature) {
 	error_text = g_strdup_printf("XEP-0136 Message Archiving for %s Not Supported!", get_server_name(curr->gtkconv));
 
@@ -470,6 +507,7 @@ iq_query(WindowStruct *curr, xmlnode *xml)
     }
 }
 
+/* explore received xml message */
 static void
 explore_xml(WindowStruct *curr, xmlnode *xml)
 {
@@ -480,6 +518,7 @@ explore_xml(WindowStruct *curr, xmlnode *xml)
 	return;
     }
 
+    /* check for error */
     for (c = xml->child; c; c = c->next) {
 	if (strcmp(c->name, "type") == 0) {
 	    if (strcmp(c->data, "result") == 0) { 
@@ -492,6 +531,7 @@ explore_xml(WindowStruct *curr, xmlnode *xml)
 	}
     }
 
+    /* determine message type */
     for (c = xml->child; c; c = c->next) {
 	if (strcmp(c->name, "query") == 0) {
 	    //purple_debug_misc(PLUGIN_ID, "EXPLORE_XML :: iq_query\n");
@@ -509,6 +549,7 @@ explore_xml(WindowStruct *curr, xmlnode *xml)
     }
 }
 
+/* handle received xml message */
 static void
 xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
 {
@@ -531,6 +572,7 @@ xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
     recipient->xml = xml;
     recipient->match = FALSE;
 
+    /* find recipient with xmpp message id */
     if (strcmp(xml->name, "iq") == 0) {
 	for (c = xml->child; c; c = c->next) {
 	    if (strcmp(c->name, "id") == 0) {
@@ -550,7 +592,8 @@ xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null)
 /*----------------------------------------------------------------------
  * send message, service discovery, show, enable, disable, status
  *----------------------------------------------------------------------*/
-    
+
+/* send raw xml message */
 static void
 message_send(char *message, PidginConversation *gtkconv)
 {
@@ -572,6 +615,7 @@ message_send(char *message, PidginConversation *gtkconv)
 	    prpl_info->send_raw(gc, message, strlen(message));
 }
 
+/* request the first page of list with same jid */
 static void
 send_iq_list(WindowStruct *curr, gchar *from, gchar *to)
 {
@@ -599,6 +643,7 @@ send_iq_list(WindowStruct *curr, gchar *from, gchar *to)
 	return;
     }
 
+    /* making message: with, start, end */
     with = purple_conv->name;
 
     if (from)
@@ -607,13 +652,13 @@ send_iq_list(WindowStruct *curr, gchar *from, gchar *to)
 	start = g_strdup_printf(" ");
 
     if (to) {
+	/* set end tag */
 	curr->end_tag_set = TRUE;
 	end = g_strdup_printf(" end='%s'", to);
     } else {
 	curr->end_tag_set = FALSE;
 	end = g_strdup_printf(" ");
     }
-
 
     message = g_strdup_printf("<iq id='%s' type='get'><list xmlns='%s' with='%s'%s%s><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></list></iq>", 
 	    curr->id, curr->xmlns, with, start, end);
@@ -625,6 +670,7 @@ send_iq_list(WindowStruct *curr, gchar *from, gchar *to)
     g_free(message);
 }
 
+/* request server preferences */
 static void
 send_pref_info(WindowStruct *curr)
 {
@@ -637,12 +683,14 @@ send_pref_info(WindowStruct *curr)
     g_free(message);
 }
 
+/* handle status button */
 static void
 status_clicked(GtkWidget *button, WindowStruct *curr)
 {
     send_disco_info(curr);
 }
 
+/* handle disable button: set auto save FALSE */
 static void
 disable_clicked(GtkWidget *button, WindowStruct *curr)
 {
@@ -657,6 +705,7 @@ disable_clicked(GtkWidget *button, WindowStruct *curr)
     send_disco_info(curr);
 }
 
+/* handle enable button: set auto save TRUE */
 static void
 enable_clicked(GtkWidget *button, WindowStruct *curr)
 {
@@ -671,6 +720,7 @@ enable_clicked(GtkWidget *button, WindowStruct *curr)
     send_disco_info(curr);
 }
 
+/* handle reset button: reset combo boxes */
 static void
 reset_clicked(GtkWidget *button, WindowStruct *curr)
 {
@@ -690,6 +740,7 @@ reset_clicked(GtkWidget *button, WindowStruct *curr)
     gtk_combo_box_set_active(GTK_COMBO_BOX(s->to_day), -1);
 }
 
+/* return "to" as gchar from gtk_combo_box */
 static gchar *
 show_clicked_make_to(RightStruct *s)
 {
@@ -720,6 +771,7 @@ show_clicked_make_to(RightStruct *s)
     return to;
 }
 
+/* return "from" as gchar from gtk_combo_box */
 static gchar *
 show_clicked_make_from(RightStruct *s)
 {
@@ -750,6 +802,7 @@ show_clicked_make_from(RightStruct *s)
     return from;
 }
 
+/* handle show button: send request with "start" = from  and "end" = to */
 static void
 show_clicked(GtkWidget *button, WindowStruct *curr)
 {
@@ -784,6 +837,7 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
 	g_free(to);
 }
 
+/* send client service discovery request */
 static void
 send_disco_info(WindowStruct *curr)
 {  
@@ -809,6 +863,7 @@ send_disco_info(WindowStruct *curr)
  * GTK create, destroy, history window
  *------------------------------------------------------------*/
 
+/* handle window "destroy" */
 static void
 history_window_destroy(GtkWidget *window, WindowStruct *curr)
 {
@@ -816,6 +871,7 @@ history_window_destroy(GtkWidget *window, WindowStruct *curr)
     g_free(curr);
 }
 
+/* handle tree_store selection */
 static void
 date_selected(GtkTreeSelection *sel, WindowStruct *curr)
 {
@@ -831,6 +887,7 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
 
     gtk_tree_model_get(model, &iter, 0, &date, -1);
 
+    /* make pretty date from raw date */
     date_raw = make_raw_date(date);
     
     if (!date_raw) {
@@ -845,6 +902,7 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
     g_free(date_raw);
 }
 
+/* handle imhtml searching */
 static void
 search_clicked(GtkWidget *button, WindowStruct *curr)
 {
@@ -860,6 +918,7 @@ search_clicked(GtkWidget *button, WindowStruct *curr)
     gtk_imhtml_search_find(GTK_IMHTML(curr->imhtml), search_text);
 }
 
+/* create right box */
 static void
 create_right_table(WindowStruct *history_window)
 {
@@ -974,6 +1033,7 @@ create_right_table(WindowStruct *history_window)
     gtk_container_set_border_width(GTK_CONTAINER(s->show_table), 5);
 }
 
+/* create left box */
 static void
 create_left_list(WindowStruct *history_window)
 {
@@ -1004,6 +1064,7 @@ create_left_list(WindowStruct *history_window)
     gtk_widget_set_size_request(GTK_WIDGET(history_window->left_scrolled), 120, -1);
 }
 
+/* create window */
 static void
 history_window_create(WindowStruct *history_window)
 {
@@ -1083,6 +1144,7 @@ history_window_create(WindowStruct *history_window)
     g_free(username_text);
 }
 
+/* init function before create window */
 static void
 history_window_open(PidginConversation *gtkconv)
 {
@@ -1095,15 +1157,18 @@ history_window_open(PidginConversation *gtkconv)
 
     new->coll= NULL;
     new->gtkconv = gtkconv;
+    /* set xmpp id */
     new->id = g_strdup_printf("xep136%x", g_random_int());
 
     history_window_create(new);
 
+    /* add to list of windows */
     list = g_list_prepend(list, new);
 
     send_disco_info(new);
 }
 
+/* check if window already exist */
 static void
 history_window_exist_test(WindowStruct *curr, Test_struct *test)
 {
@@ -1111,6 +1176,7 @@ history_window_exist_test(WindowStruct *curr, Test_struct *test)
 	test->included = TRUE;
 }
 
+/* handle history button */
 static void
 history_button_clicked(GtkWidget *button, PidginConversation *gtkconv)
 {
@@ -1136,6 +1202,7 @@ history_button_clicked(GtkWidget *button, PidginConversation *gtkconv)
  * attach, detach, history_button
  *------------------------------------------------------------*/
 
+/* check if conversation is jabber */
 static gboolean
 if_jabber(PidginConversation *gtkconv)
 {
@@ -1332,7 +1399,7 @@ static PurplePluginInfo info = {
 
     PLUGIN_ID,
     "XEP-0136 plugin",
-    "0.2",
+    "0.3",
 
     "XEP-0136 plugin",
     "Server Message Archiving",
