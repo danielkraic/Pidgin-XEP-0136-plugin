@@ -70,9 +70,18 @@ typedef struct _WindowStruct {
 
 } WindowStruct;
 
-typedef struct {
+typedef struct _NewCollection {
+    gchar *date;
     gchar *start;
     gchar *with;
+    gchar need_to_create_new;
+} NewCollection;
+
+typedef struct {
+    gchar *date;
+    gchar *start;
+    gchar *with;
+    GList *to_retrieve;
 } RetrieveCollection;
 
 typedef struct {
@@ -98,7 +107,7 @@ static int get_curr_year(void);
 
 /* explore received xmlnode, manage collections */
 static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
-static void retrieve_collection(WindowStruct *curr, char *start);
+static void retrieve_collection(WindowStruct *curr, gchar *date);
 static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d);
 static void iq_retrieve(WindowStruct *curr, xmlnode *xml);
 static void empty_collection(WindowStruct *curr);

@@ -209,43 +209,62 @@ send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
     }
 }
 
-/* retrieve a collection */
 static void
-retrieve_collection(WindowStruct *curr, char *start)
+retrieve_collection_send_message(NewCollection *new, WindowStruct *curr)
 {
     gchar *message = NULL;
-    RetrieveCollection *new = NULL;
-    PurpleConversation *purple_conv = (curr->gtkconv)->active_conv;
     
-    if (!purple_conv) {
-	purple_debug_error(PLUGIN_ID, "ERROR: 'purple_conv' retrieve_collection\n");
+    message = g_strdup_printf("<iq id='%s' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", curr->id, curr->xmlns, new->with, new->start);
+
+    message_send(message, curr->gtkconv);
+
+    g_free(message);
+}
+
+static void
+retrieve_collection_find(RetrieveCollection *curr, RetrieveCollection *new)
+{
+    if (new->start) 
 	return;
+
+    if ( strcmp(curr->date, new->date) == 0 ) {
+
+	purple_debug_misc(PLUGIN_ID, "retrieve_collection_find :: %s == %s\n", curr->date, new->date);
+
+	new->start = curr->start;
+	new->with = curr->with;
+	new->to_retrieve = curr->to_retrieve;
     }
+}
+
+/* retrieve a collection */
+static void
+retrieve_collection(WindowStruct *curr, gchar *date)
+{
+    RetrieveCollection *new = NULL;
 
     /* create new struct */
-    new = g_malloc0(sizeof(RetrieveCollection));
+    new = (RetrieveCollection *) g_malloc0(sizeof(RetrieveCollection));
     if (!new) {
 	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
 	return;
     }
 
-    new->start = start;
-    new->with = NULL;
+    new->date = date;
+    new->start = NULL;
 
-    /* to set exact jid */
-    g_list_foreach(curr->coll, (GFunc) send_propher_name, (gpointer) new);
+    /* find collection for selected date */
+    g_list_foreach(curr->coll, (GFunc) retrieve_collection_find, (gpointer) new);
 
-    if (!new->with) {
-	purple_debug_error(PLUGIN_ID, "retrieve_collection :: !new->with\n");
-	g_free(new);
+    if (!new->start) {
+	purple_debug_misc(PLUGIN_ID, "add_collection :: !new->start\n");
 	return;
     }
 
-    message = g_strdup_printf("<iq id='%s' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>10</max></set></retrieve></iq>", curr->id, curr->xmlns, new->with, new->start);
+    purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %s :: %s :: %s\n", new->date, new->start, new->with);
 
-    message_send(message, curr->gtkconv);
-
-    g_free(message);
+    /* retieve all collections for selected date */
+    g_list_foreach(new->to_retrieve, (GFunc) retrieve_collection_send_message, (gpointer) curr);
 
     g_free(new);
 }
@@ -296,7 +315,7 @@ iq_retrieve(WindowStruct *curr, xmlnode *xml)
     xmlnode *d = NULL;
     char *data = NULL;
 
-    gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+    //gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
 
     for (c = xml->child; c; c = c->next) {
 	if ( (strcmp(c->name, "from") == 0) || (strcmp(c->name, "to") == 0) ) { 
@@ -318,34 +337,100 @@ empty_collection(WindowStruct *curr)
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b><font color='#cc0000'>Empty collection!</font></b><br>", 0);
 }
 
+/* create new collection to collections list */
+static void
+add_collection_create_new(WindowStruct *curr, NewCollection *new)
+{
+    RetrieveCollection *new_coll;
+    GtkTreeIter iter;
+
+    new_coll = (RetrieveCollection *) g_malloc0(sizeof(RetrieveCollection));
+    if (!new_coll) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
+	return;
+    }
+
+    /* ceate new collection */
+    new_coll->date = g_strdup(new->date);
+    new_coll->start = g_strdup(new->start);
+    new_coll->with = g_strdup(new->with);
+
+    purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %s :: %s :: %s\n", new_coll->date, new_coll->start, new_coll->with);
+
+    new_coll->to_retrieve = g_list_prepend(new_coll->to_retrieve, new);
+
+    /* add to the list of collections */
+    curr->coll = g_list_prepend(curr->coll, new_coll);
+
+    new->need_to_create_new = FALSE;
+
+    /* append to tree_store with pretty date */
+    gtk_tree_store_append(curr->treestore, &iter, NULL);
+    gtk_tree_store_set(curr->treestore, &iter, 0, new_coll->date, -1);
+}
+
+static void
+add_collection_find(RetrieveCollection *curr_coll, NewCollection *new)
+{
+    if (strcmp(curr_coll->date, new->date) == 0) {
+
+	purple_debug_misc(PLUGIN_ID, "add_collection_find :: %s == %s\n", curr_coll->date, new->date);
+
+	curr_coll->to_retrieve = g_list_prepend(curr_coll->to_retrieve, new);
+
+	new->need_to_create_new = FALSE;
+    }
+}
+
 /* add collection to collections list */
 static void
 add_collection(WindowStruct *curr, gchar *start, gchar *with)
 {
-    RetrieveCollection *new = NULL;
+    NewCollection *new = NULL;
 
-    new = g_malloc0(sizeof(RetrieveCollection));
+    new = (NewCollection *) g_malloc0(sizeof(NewCollection));
     if (!new) {
-	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new NewCollection\n");
 	return;
     }
 
     new->start = g_strdup(start);
     new->with = g_strdup(with);
+    new->date = g_strndup(start, 10);
+    new->need_to_create_new = TRUE;
 
-    if ( !(new->start) || !(new->with) ) {
-	purple_debug_misc(PLUGIN_ID, "add_collection :: !prepend\n");
+    if ( !(new->start) || !(new->with) || !(new->date) ) {
+	purple_debug_misc(PLUGIN_ID, "add_collection :: !new\n");
+
+	if (new->date)  g_free(new->date);
+	if (new->start) g_free(new->start);
+	if (new->with)  g_free(new->with);
+
+	g_free(new);
 	return;
     }
 
-    curr->coll = g_list_prepend(curr->coll, new);
+    purple_debug_misc(PLUGIN_ID, "add_collection :: %s :: %s :: %s\n", new->date, new->start, new->with);
+
+    if ( !(curr->coll) ) {
+	purple_debug_misc(PLUGIN_ID, "add_collection :: !(curr->coll)\n");
+	add_collection_create_new(curr, new);
+    }
+
+    g_list_foreach(curr->coll, (GFunc) add_collection_find, (gpointer) new);
+
+    if (new->need_to_create_new) {
+	purple_debug_misc(PLUGIN_ID, "add_collection :: new->need_to_create_new\n");
+	add_collection_create_new(curr, new);
+    }
+
+    purple_debug_misc(PLUGIN_ID, "add_collection :: done!\n");
 }
 
 /* explore iq list message */
 static void
 iq_list(WindowStruct *curr, xmlnode *xml)
 {
-    GtkTreeIter iter;
     xmlnode *c = NULL;
     xmlnode *d = NULL;
     char *with = NULL;
@@ -388,18 +473,6 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 	    /* save collection with raw date */
 	    add_collection(curr, (gchar *) start, (gchar *) with);
 
-	    /* make pretty date */
-	    pretty_start = make_pretty_date( (gchar *) start);
-	    
-	    /* append to tree_store with pretty date */
-	    gtk_tree_store_append(curr->treestore, &iter, NULL);
-
-	    if (!pretty_start) {
-		gtk_tree_store_set(curr->treestore, &iter, 0, start, -1);
-	    } else {
-		gtk_tree_store_set(curr->treestore, &iter, 0, pretty_start, -1);
-		g_free(pretty_start);
-	    }
 	}
     }
 
@@ -878,28 +951,24 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
     GtkTreeIter iter;
     GtkTreeModel *model;
     gchar *date = NULL;
-    gchar *date_raw = NULL;
 
     if (!gtk_tree_selection_get_selected(sel, &model, &iter)) {
 	purple_debug_misc(PLUGIN_ID, "date_selected :: !gtk_tree_selection_get_selected\n");
 	return;
     }
 
+    gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+    
     gtk_tree_model_get(model, &iter, 0, &date, -1);
 
-    /* make pretty date from raw date */
-    date_raw = make_raw_date(date);
-    
-    if (!date_raw) {
-	purple_debug_misc(PLUGIN_ID, "date_selected :: !date_raw\n");
-	g_free(date);
+    if (!date) {
+	purple_debug_misc(PLUGIN_ID, "date_selected :: !date\n");
 	return;
     }
 
-    retrieve_collection(curr, date_raw);
+    retrieve_collection(curr, date);
 
     g_free(date);
-    g_free(date_raw);
 }
 
 /* handle imhtml searching */
