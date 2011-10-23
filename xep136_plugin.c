@@ -241,7 +241,7 @@ retrieve_collection(WindowStruct *curr, char *start)
 	return;
     }
 
-    message = g_strdup_printf("<iq id='%s' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>10</max></set></retrieve></iq>", curr->id, curr->xmlns, new->with, new->start);
+    message = g_strdup_printf("<iq id='%s' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", curr->id, curr->xmlns, new->with, new->start);
 
     message_send(message, curr->gtkconv);
 
@@ -410,11 +410,14 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 	purple_debug_misc(PLUGIN_ID, "iq_list :: end_tag_set FALSE\n");
     */
 
+    // TODO: not work with prosody server
     /* if end tag is not set, retrieve next 100 collections */
+    /*
     if (!curr->end_tag_set) {
 	last = increase_start_time(start);
 	send_iq_list(curr, last, NULL);
     }
+    */
     
     if (last) 
 	g_free(last);
