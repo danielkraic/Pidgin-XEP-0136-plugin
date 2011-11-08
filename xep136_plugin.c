@@ -120,10 +120,26 @@ get_my_username(PidginConversation *gtkconv)
     PurpleAccount *acc = purple_conv->account;
     char *username= acc->username;
 
+    gchar *my_username = NULL;;
+    gchar *lom = NULL; //pointer to '/'
+    glong dlzka = 0;
+
     if (!acc)
 	return NULL;
 
-    return username;
+    dlzka = g_utf8_strlen(username, -1);
+
+    lom = g_strstr_len(username, dlzka, "/");
+
+    if (lom != NULL) {
+	dlzka = dlzka - g_utf8_strlen(lom, -1);
+    }
+ 
+    my_username = (gchar *) g_malloc0( (dlzka + 1) * sizeof(gchar) );
+
+    g_strlcat (my_username, username, dlzka + 1);
+
+    return my_username;
 }
 
 /* return server name from users's jid from PurpleAccount */
@@ -257,6 +273,7 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
     xmlnode *body = d->child;
     char *text = NULL;
     gchar *from_to = NULL;
+    gchar *my_username = get_my_username(curr->gtkconv);
 
     if (d->child) {
 	if (body->data) {
@@ -266,7 +283,7 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 	    /* create line to imhtml */
 	    if (text) {
 		if (strcmp(c->name, "from") == 0) {
-		    from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", get_my_username(curr->gtkconv));
+		    from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", my_username);
 		//} else if (strcmp(c->name, "to") == 0) {
 		} else {
 		    from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", get_friend_username(curr->gtkconv));
@@ -285,6 +302,8 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 	    }
 	}
     }
+
+    g_free(my_username);
 }
 
 /* explore iq retrieve message */
