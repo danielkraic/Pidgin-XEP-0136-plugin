@@ -59,6 +59,11 @@ typedef struct _WindowStruct {
     //indicates end tag in send_iq_list 
     gboolean end_tag_set;
 
+    /* numer of retrieve conversations to show in imhtml */
+    int number_of_convs_to_show;
+    /* list of imhtml_messages to show */
+    GList *imhtml_list;
+
     //xmlns for current server
     char *xmlns;
 
@@ -76,6 +81,11 @@ typedef struct _NewCollection {
     gchar *with;
     gchar need_to_create_new;
 } NewCollection;
+
+typedef struct _ImhtmlText {
+    gchar *date;
+    gchar *text;
+} ImhtmlText;
 
 typedef struct {
     gchar *date;
@@ -108,7 +118,9 @@ static int get_curr_year(void);
 /* explore received xmlnode, manage collections */
 static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
 static void retrieve_collection(WindowStruct *curr, gchar *date);
-static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d);
+static gchar * imhtml_text_make_date(gchar *secs, gchar *start);
+static void imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs, gchar *start);
+static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar *start);
 static void iq_retrieve(WindowStruct *curr, xmlnode *xml);
 static void empty_collection(WindowStruct *curr);
 static void add_collection(WindowStruct *curr, gchar *start, gchar *with);

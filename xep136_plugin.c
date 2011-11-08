@@ -118,7 +118,7 @@ get_my_username(PidginConversation *gtkconv)
 {
     PurpleConversation *purple_conv = gtkconv->active_conv;
     PurpleAccount *acc = purple_conv->account;
-    char *username= acc->username;
+    gchar *username= acc->username;
 
     if (!acc)
 	return NULL;
@@ -234,6 +234,7 @@ retrieve_collection_find(RetrieveCollection *curr, RetrieveCollection *new)
 	new->start = curr->start;
 	new->with = curr->with;
 	new->to_retrieve = curr->to_retrieve;
+
     }
 }
 
@@ -261,7 +262,11 @@ retrieve_collection(WindowStruct *curr, gchar *date)
 	return;
     }
 
+    /* set number of collections to show in imhtml */
+    curr->number_of_convs_to_show = g_list_length(new->to_retrieve);
+
     purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %s :: %s :: %s\n", new->date, new->start, new->with);
+    purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %d number_of_convs_to_show\n", curr->number_of_convs_to_show);
 
     /* retieve all collections for selected date */
     g_list_foreach(new->to_retrieve, (GFunc) retrieve_collection_send_message, (gpointer) curr);
@@ -269,13 +274,110 @@ retrieve_collection(WindowStruct *curr, gchar *date)
     g_free(new);
 }
 
+static gchar *
+imhtml_text_make_date(gchar *secs, gchar *start)
+{
+    char date[11];
+    char hour[3];
+    char minute[3];
+    char second[3];
+    gchar *result = NULL;
+
+    purple_debug_misc(PLUGIN_ID, "imhtml_text_make_date enter\n");
+
+    strncpy(date, start, 10);
+    date[10] = '\0';
+
+    hour[0] = start[11];
+    hour[1] = start[12];
+    hour[2] = '\0';
+
+    minute[0] = start[14];
+    minute[1] = start[15];
+    minute[2] = '\0';
+
+    second[0] = start[17];
+    second[1] = start[18];
+    second[2] = '\0';
+
+    purple_debug_misc(PLUGIN_ID, "imhtml_text_make_date before g_strdup_printf\n");
+
+    result = g_strdup_printf("%s %c%c:%c%c:%c%c", date, hour[0], hour[1], minute[0], minute[1], second[0], second[1]);
+
+    purple_debug_misc(PLUGIN_ID, "imhtml_text_make_date exit\n");
+
+    return result;
+}
+
+static void
+imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs, gchar *start)
+{
+    ImhtmlText *new = NULL;
+
+    if (!start) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !start imhtml_text_save_message\n");
+	return;
+    }
+
+    if (!secs) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !secs imhtml_text_save_message\n");
+	return;
+    }
+    if (!imhtml_message) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !imhtml_message imhtml_text_save_message\n");
+	return;
+    }
+
+    new  = (ImhtmlText *) g_malloc0(sizeof(ImhtmlText));
+    if (!new) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 !new ImhtmlText imhtml_text_save_message\n");
+	return;
+    }
+
+    purple_debug_misc(PLUGIN_ID, "imhtml_text_save_message enter\n");
+
+    new->date = imhtml_text_make_date(secs, start);
+    new->text = g_strdup(imhtml_message);
+
+    if (!new->date) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !new->date imhtml_text_save_message\n");
+	return;
+    }
+
+    if (!new->text) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !new->text imhtml_text_save_message\n");
+	return;
+    }
+
+    curr->imhtml_list = g_list_prepend(curr->imhtml_list, new);
+
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), new->date, 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), new->text, 0);
+
+    purple_debug_misc(PLUGIN_ID, "imhtml_text_save_message exit\n");
+}
+
 /* explore body of iq retrieve message */
 static void
-iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
+iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar *start)
 {
     xmlnode *body = d->child;
     char *text = NULL;
     gchar *from_to = NULL;
+    gchar *imhtml_message = NULL;
+
+    if (!start) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !start iq_retrieve_body\n");
+	return;
+    }
+
+    if (!secs) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !secs iq_retrieve_body\n");
+	return;
+    }
+
+    purple_debug_misc(PLUGIN_ID, "iq_retrieve_body enter\n");
 
     if (d->child) {
 	if (body->data) {
@@ -286,17 +388,21 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 	    if (text) {
 		if (strcmp(c->name, "from") == 0) {
 		    from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", get_my_username(curr->gtkconv));
-		//} else if (strcmp(c->name, "to") == 0) {
 		} else {
 		    from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", get_friend_username(curr->gtkconv));
 		}
 
 	    	/* write to imhtml */
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), from_to, 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), text, 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		imhtml_message = g_strdup_printf("%s (%s + %s) :: %s<br>", from_to, start, secs, text);
 
+		if (!imhtml_message) {
+		    purple_debug_error(PLUGIN_ID, "ERROR: !imhtml_message iq_retrieve_body\n");
+		    return;
+		}
+
+		imhtml_text_save_message(curr, imhtml_message, secs, start);
+
+		g_free(imhtml_message);
 		g_free(text);
 		g_free(from_to);
 	    } else {
@@ -304,6 +410,8 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 	    }
 	}
     }
+
+    purple_debug_misc(PLUGIN_ID, "iq_retrieve_body exit\n");
 }
 
 /* explore iq retrieve message */
@@ -314,19 +422,46 @@ iq_retrieve(WindowStruct *curr, xmlnode *xml)
     xmlnode *c = NULL;
     xmlnode *d = NULL;
     char *data = NULL;
+    gchar *secs = NULL;
+    gchar *start = NULL;
 
     //gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+
+    /* to get start value */
+    for (c = xml->child; c; c = c->next) {
+	if (strcmp(c->name, "start") == 0) {
+	    start = g_strdup(c->data);
+	}
+    }
+
+    if (!start) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !start c->data iq_retrieve\n");
+	return;
+    }
+
+    purple_debug_misc(PLUGIN_ID, "iq_retrieve enter\n");
 
     for (c = xml->child; c; c = c->next) {
 	if ( (strcmp(c->name, "from") == 0) || (strcmp(c->name, "to") == 0) ) { 
 	    for (d = c->child; d; d = d->next) {
+
+		/* to ge secs value */
+		if (strcmp(d->name, "secs") == 0) { 
+		    secs = g_strdup(d->data);
+		}
+
 		if (strcmp(d->name, "body") == 0) { 
-		    iq_retrieve_body(curr, c, d);
+		    iq_retrieve_body(curr, c, d, secs, start);
 
 		}
 	    }
 	}
     }
+
+    g_free(start);
+    g_free(secs);
+
+    purple_debug_misc(PLUGIN_ID, "iq_retrieve exit\n");
 }
 
 /* handle empty collection */
