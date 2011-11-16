@@ -59,8 +59,10 @@ typedef struct _WindowStruct {
     //indicates end tag in send_iq_list 
     gboolean end_tag_set;
 
-    /* numer of retrieve conversations to show in imhtml */
+    /* number of retrieve conversations to show in imhtml */
     int number_of_convs_to_show;
+    /* number of retrieve conversations saved in imhtml_list */
+    int number_of_convs_saved;
     /* list of imhtml_messages to show */
     GList *imhtml_list;
 
@@ -114,15 +116,22 @@ static gchar * get_my_username(PidginConversation *gtkconv);
 static gchar * get_server_name(PidginConversation *gtkconv);
 static void find_recipient(WindowStruct *curr, Recipient_info *recipient);
 static int get_curr_year(void);
+static void free_imhtml_item(ImhtmlText *item);
+static int imhtml_compare_func(ImhtmlText *a, ImhtmlText *b);
+static void show_imhtml_conv(ImhtmlText *conv, WindowStruct *curr);
 
 /* explore received xmlnode, manage collections */
 static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
+static void retrieve_collection_send_message(NewCollection *new, WindowStruct *curr);
+static void retrieve_collection_find(RetrieveCollection *curr, RetrieveCollection *new);
 static void retrieve_collection(WindowStruct *curr, gchar *date);
 static gchar * imhtml_text_make_date(gchar *secs, gchar *start);
 static void imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs, gchar *start);
 static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar *start);
 static void iq_retrieve(WindowStruct *curr, xmlnode *xml);
 static void empty_collection(WindowStruct *curr);
+static void add_collection_create_new(WindowStruct *curr, NewCollection *new);
+static void add_collection_find(RetrieveCollection *curr_coll, NewCollection *new);
 static void add_collection(WindowStruct *curr, gchar *start, gchar *with);
 static void iq_list(WindowStruct *curr, xmlnode *xml);
 static void iq_pref(WindowStruct *curr, xmlnode *xml);
@@ -147,6 +156,7 @@ static void send_disco_info(WindowStruct *curr);
 /* GTK create, destroy, history window */
 static void history_window_destroy(GtkWidget *window, WindowStruct *curr);
 static void date_selected(GtkTreeSelection *sel, WindowStruct *curr);
+static void search_clicked(GtkWidget *button, WindowStruct *curr);
 static void create_right_table(WindowStruct *history_window);
 static void create_left_list(WindowStruct *history_window);
 static void history_window_create(WindowStruct *history_window);
