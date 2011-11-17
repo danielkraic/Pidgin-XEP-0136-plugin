@@ -1,7 +1,17 @@
-/* xep136_plugin.c */
+/* 
+ * filename:	xep136_plugin.c 
+ *
+ * author: 	Daniel Kraic
+ * email:	danielkraic@gmail.com
+ * date:	2011-11-16
+ * version:	v0.5
+ *
+ */
+
 
 #define PURPLE_PLUGINS
 #define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
+
 
 #include <string.h>
 #include <stdlib.h>
@@ -20,59 +30,16 @@
 
 
 static PurplePlugin *xep136 = NULL; 	/* plugin id pointer */
-static GList *list = NULL;		/* list of pointers to WindowStruct */
+static GList *list = NULL;		/* list of pointers to WindowStruct items */
 
 /* xmlns for ejabberd and prosody to xml messages */
 static char *xmlns_ejabberd = "http://www.xmpp.org/extensions/xep-0136.html#ns";
 static char *xmlns_prosody = "urn:xmpp:archive";
 
+
 /*--------------------------------------------------------------------------------
  * misc functions: increase_start_time, get_server_name, find_recipient, ...
  *--------------------------------------------------------------------------------*/
-
-/* return pretty date from raw date
- * example: return 2011-10-18 15:41:05 from 2011-10-18-T15:41:0500000Z */
-static gchar * 
-make_pretty_date(gchar *raw)
-{
-    gchar *pretty;
-    char date_ptr[11];
-    char time_ptr[9];
-
-    strncpy(date_ptr, raw, 10); 
-    strncpy(time_ptr, (raw + 11), 8); 
-
-    date_ptr[10] = '\0';
-    time_ptr[8] = '\0';
-
-    pretty = (gchar *) g_strdup_printf("%s %s", (gchar *) date_ptr, (gchar *) time_ptr);
-
-    //purple_debug_misc(PLUGIN_ID, "make_pretty_date :: %s\n", pretty);
-
-    return pretty;
-}
-
-/* return raw date from pretty date
- * example: return 2011-10-18-T15:41:05Z from 2011-10-18 15:41:05 */
-static gchar * 
-make_raw_date(gchar *pretty)
-{
-    gchar *raw;
-    char date_ptr[11];
-    char time_ptr[9];
-
-    strncpy(date_ptr, pretty, 10); 
-    strncpy(time_ptr, (pretty + 11), 8); 
-
-    date_ptr[10] = '\0';
-    time_ptr[8] = '\0';
-
-    raw = (gchar *) g_strdup_printf("%sT%sZ", (gchar *) date_ptr, (gchar *) time_ptr);
-
-    //purple_debug_misc(PLUGIN_ID, "make_raw_date :: %s\n", raw);
-
-    return raw;
-}
 
 /* increase start time by one second */
 static gchar *
@@ -134,7 +101,7 @@ get_my_username(PidginConversation *gtkconv)
     if (lom != NULL) {
 	dlzka = dlzka - g_utf8_strlen(lom, -1);
     }
- 
+
     my_username = (gchar *) g_malloc0( (dlzka + 1) * sizeof(gchar) );
 
     g_strlcat (my_username, username, dlzka + 1);
@@ -179,6 +146,7 @@ get_server_name(PidginConversation *gtkconv)
 static void
 find_recipient(WindowStruct *curr, Recipient_info *recipient)
 {
+    /* end if already matched */
     if (recipient->match == TRUE)
 	return;
 
@@ -209,6 +177,29 @@ get_curr_year(void)
     return year;
 }
 
+/* free ImhtmlText item from imhtml_list */
+static void
+free_imhtml_item(ImhtmlText *item)
+{
+    g_free(item->date);
+    g_free(item->text);
+}
+
+/* compare dates of ImhtmlText items */
+static int 
+imhtml_compare_func(ImhtmlText *a, ImhtmlText *b)
+{
+    return strcmp(a->date, b->date);
+}
+
+/* show ImhtmlText item */
+static void
+show_imhtml_conv(ImhtmlText *conv, WindowStruct *curr)
+{
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), conv->date, 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), conv->text, 0);
+}
 
 /*------------------------------------------------------------
  * explore received xmlnode, manage collections  
@@ -225,55 +216,182 @@ send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
     }
 }
 
-/* retrieve a collection */
+/* retrieve collection: send message */
 static void
-retrieve_collection(WindowStruct *curr, char *start)
+retrieve_collection_send_message(NewCollection *new, WindowStruct *curr)
 {
     gchar *message = NULL;
-    RetrieveCollection *new = NULL;
-    PurpleConversation *purple_conv = (curr->gtkconv)->active_conv;
     
-    if (!purple_conv) {
-	purple_debug_error(PLUGIN_ID, "ERROR: 'purple_conv' retrieve_collection\n");
-	return;
-    }
-
-    /* create new struct */
-    new = g_malloc0(sizeof(RetrieveCollection));
-    if (!new) {
-	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
-	return;
-    }
-
-    new->start = start;
-    new->with = NULL;
-
-    /* to set exact jid */
-    g_list_foreach(curr->coll, (GFunc) send_propher_name, (gpointer) new);
-
-    if (!new->with) {
-	purple_debug_error(PLUGIN_ID, "retrieve_collection :: !new->with\n");
-	g_free(new);
-	return;
-    }
-
     message = g_strdup_printf("<iq id='%s' type='get'><retrieve xmlns='%s' with='%s' start='%s'><set xmlns='http://jabber.org/protocol/rsm'><max>100</max></set></retrieve></iq>", curr->id, curr->xmlns, new->with, new->start);
 
     message_send(message, curr->gtkconv);
 
     g_free(message);
+}
+
+/* retrieve collection: find collection for selected date */
+static void
+retrieve_collection_find(RetrieveCollection *curr, RetrieveCollection *new)
+{
+    /* exit if already found */
+    if (new->start) 
+	return;
+
+    if ( strcmp(curr->date, new->date) == 0 ) {
+	//purple_debug_misc(PLUGIN_ID, "retrieve_collection_find :: %s == %s\n", curr->date, new->date);
+
+	new->start = curr->start;
+	new->with = curr->with;
+	new->to_retrieve = curr->to_retrieve;
+    }
+}
+
+/* retrieve a collection */
+static void
+retrieve_collection(WindowStruct *curr, gchar *date)
+{
+    RetrieveCollection *new = NULL;
+
+    /* create new struct */
+    new = (RetrieveCollection *) g_malloc0(sizeof(RetrieveCollection));
+    if (!new) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
+	return;
+    }
+
+    new->date = date;
+    new->start = NULL;
+
+    /* find collection for selected date */
+    g_list_foreach(curr->coll, (GFunc) retrieve_collection_find, (gpointer) new);
+
+    if (!new->start) {
+	purple_debug_misc(PLUGIN_ID, "add_collection :: !new->start\n");
+	return;
+    }
+
+    /* set number of collections to show in imhtml */
+    curr->number_of_convs_to_show = g_list_length(new->to_retrieve);
+
+    //purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %s :: %s :: %s\n", new->date, new->start, new->with);
+    //purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %d number_of_convs_to_show\n", curr->number_of_convs_to_show);
+
+    /* retieve all collections for selected date */
+    g_list_foreach(new->to_retrieve, (GFunc) retrieve_collection_send_message, (gpointer) curr);
 
     g_free(new);
 }
 
+/* create string date+time for imhtml item */
+static gchar *
+imhtml_text_make_date(gchar *secs, gchar *start)
+{
+    char date[11];
+    char hour[3];
+    char minute[3];
+    char second[3];
+    gchar *result = NULL;
+    int hou;
+    int min;
+    int sec;
+    int secs_int = atoi(secs);
+
+    strncpy(date, start, 10);
+    date[10] = '\0';
+
+    hour[0] = start[11];
+    hour[1] = start[12];
+    hour[2] = '\0';
+    hou = atoi(hour);
+
+    minute[0] = start[14];
+    minute[1] = start[15];
+    minute[2] = '\0';
+    min = atoi(minute);
+
+    second[0] = start[17];
+    second[1] = start[18];
+    second[2] = '\0';
+    sec = atoi(second);
+
+    /* add secs to date */
+    min += (int) ( (secs_int + sec) / 60 );
+    sec = (int) ( (secs_int + sec) % 60 );
+
+    hou += (int) (min / 60);
+    min = (int) (min % 60);
+    
+    //result = g_strdup_printf("%s %c%c:%c%c:%c%c", date, hour[0], hour[1], minute[0], minute[1], second[0], second[1]);
+    result = g_strdup_printf("%s %02d:%02d:%02d", date, hou, min, sec);
+
+    return result;
+}
+
+/* save item to ImhtmlText list */
+static void
+imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs, gchar *start)
+{
+    ImhtmlText *new = NULL;
+
+    if (!start) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !start imhtml_text_save_message\n");
+	return;
+    }
+
+    if (!secs) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !secs imhtml_text_save_message\n");
+	return;
+    }
+    if (!imhtml_message) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !imhtml_message imhtml_text_save_message\n");
+	return;
+    }
+
+    new  = (ImhtmlText *) g_malloc0(sizeof(ImhtmlText));
+    if (!new) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 !new ImhtmlText imhtml_text_save_message\n");
+	return;
+    }
+
+    new->date = imhtml_text_make_date(secs, start);
+    new->text = g_strdup(imhtml_message);
+
+    if (!new->date) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !new->date imhtml_text_save_message\n");
+	return;
+    }
+
+    if (!new->text) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !new->text imhtml_text_save_message\n");
+	return;
+    }
+
+    curr->imhtml_list = g_list_prepend(curr->imhtml_list, new);
+}
+
 /* explore body of iq retrieve message */
 static void
-iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
+iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar *start)
 {
     xmlnode *body = d->child;
     char *text = NULL;
     gchar *from_to = NULL;
-    gchar *my_username = get_my_username(curr->gtkconv);
+    gchar *imhtml_message = NULL;
+    gchar *my_username = NULL;
+    gchar *friends_username = NULL;
+
+    if (!start) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !start iq_retrieve_body\n");
+	return;
+    }
+
+    if (!secs) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !secs iq_retrieve_body\n");
+	return;
+    }
+
+    my_username = (gchar *) get_my_username(curr->gtkconv);
+    friends_username = (gchar *) get_friend_username(curr->gtkconv);
 
     if (d->child) {
 	if (body->data) {
@@ -283,18 +401,26 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d)
 	    /* create line to imhtml */
 	    if (text) {
 		if (strcmp(c->name, "from") == 0) {
+		    //from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", get_my_username(curr->gtkconv));
 		    from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", my_username);
-		//} else if (strcmp(c->name, "to") == 0) {
 		} else {
-		    from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", get_friend_username(curr->gtkconv));
+		    //from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", get_friend_username(curr->gtkconv));
+		    from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", friends_username);
 		}
 
 	    	/* write to imhtml */
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), from_to, 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), text, 0);
-		gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<br>", 0);
+		purple_debug_misc(PLUGIN_ID, "\nBODY %s + %s :: %s :: %s<br>\n", start, secs, from_to, text);
+		//imhtml_message = g_strdup_printf("%s (%s + %s) :: %s<br>", from_to, start, secs, text);
+		imhtml_message = g_strdup_printf("%s: %s<br>", from_to, text);
 
+		if (!imhtml_message) {
+		    purple_debug_error(PLUGIN_ID, "ERROR: !imhtml_message iq_retrieve_body\n");
+		    return;
+		}
+
+		imhtml_text_save_message(curr, imhtml_message, secs, start);
+
+		g_free(imhtml_message);
 		g_free(text);
 		g_free(from_to);
 	    } else {
@@ -313,19 +439,65 @@ iq_retrieve(WindowStruct *curr, xmlnode *xml)
     GtkTreeIter iter;
     xmlnode *c = NULL;
     xmlnode *d = NULL;
-    char *data = NULL;
+    //char *data = NULL;
+    gchar *secs = NULL;
+    gchar *start = NULL;
+    //gchar *debug_text = NULL;
 
-    gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+    //gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+
+    /* to get start value */
+    for (c = xml->child; c; c = c->next) {
+	if (strcmp(c->name, "start") == 0) {
+	    start = g_strdup(c->data);
+	}
+    }
+
+    if (!start) {
+	purple_debug_error(PLUGIN_ID, "ERROR: !start c->data iq_retrieve\n");
+	return;
+    }
 
     for (c = xml->child; c; c = c->next) {
 	if ( (strcmp(c->name, "from") == 0) || (strcmp(c->name, "to") == 0) ) { 
 	    for (d = c->child; d; d = d->next) {
+
+		/* to ge secs value */
+		if (strcmp(d->name, "secs") == 0) { 
+		    secs = g_strdup(d->data);
+		}
+
 		if (strcmp(d->name, "body") == 0) { 
-		    iq_retrieve_body(curr, c, d);
+		    iq_retrieve_body(curr, c, d, secs, start);
 
 		}
 	    }
 	}
+    }
+
+    g_free(start);
+    g_free(secs);
+
+    curr->number_of_convs_saved++;
+    
+    //debug_text = g_strdup_printf("<b>%d / %d</b><br>", curr->number_of_convs_saved, curr->number_of_convs_to_show);
+    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), debug_text, 0);
+    //g_free(debug_text);
+
+    if (curr->number_of_convs_to_show == curr->number_of_convs_saved) {
+
+	/* sort list and print conversations */
+	curr->imhtml_list = g_list_sort(curr->imhtml_list, (GCompareFunc) imhtml_compare_func);
+	g_list_foreach(curr->imhtml_list, (GFunc) show_imhtml_conv, (gpointer) curr);
+	
+	/* delete list and free memory */
+	g_list_foreach(curr->imhtml_list, (GFunc) free_imhtml_item, NULL);
+	g_list_free(curr->imhtml_list);
+	curr->imhtml_list = NULL;
+
+	curr->number_of_convs_to_show = 0;
+	curr->number_of_convs_saved = 0;
+	//gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b>juchu juchu</b><br>", 0);
     }
 }
 
@@ -337,40 +509,103 @@ empty_collection(WindowStruct *curr)
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b><font color='#cc0000'>Empty collection!</font></b><br>", 0);
 }
 
+/* create new collection to collections list */
+static void
+add_collection_create_new(WindowStruct *curr, NewCollection *new)
+{
+    RetrieveCollection *new_coll;
+    GtkTreeIter iter;
+
+    new_coll = (RetrieveCollection *) g_malloc0(sizeof(RetrieveCollection));
+    if (!new_coll) {
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
+	return;
+    }
+
+    /* ceate new collection */
+    new_coll->date = g_strdup(new->date);
+    new_coll->start = g_strdup(new->start);
+    new_coll->with = g_strdup(new->with);
+
+    //purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %s :: %s :: %s\n", new_coll->date, new_coll->start, new_coll->with);
+
+    new_coll->to_retrieve = g_list_prepend(new_coll->to_retrieve, new);
+
+    /* add to the list of collections */
+    curr->coll = g_list_prepend(curr->coll, new_coll);
+
+    new->need_to_create_new = FALSE;
+
+    /* append to tree_store with pretty date */
+    gtk_tree_store_append(curr->treestore, &iter, NULL);
+    gtk_tree_store_set(curr->treestore, &iter, 0, new_coll->date, -1);
+}
+
+static void
+add_collection_find(RetrieveCollection *curr_coll, NewCollection *new)
+{
+    if (strcmp(curr_coll->date, new->date) == 0) {
+
+	//purple_debug_misc(PLUGIN_ID, "add_collection_find :: %s == %s\n", curr_coll->date, new->date);
+
+	curr_coll->to_retrieve = g_list_prepend(curr_coll->to_retrieve, new);
+
+	new->need_to_create_new = FALSE;
+    }
+}
+
 /* add collection to collections list */
 static void
 add_collection(WindowStruct *curr, gchar *start, gchar *with)
 {
-    RetrieveCollection *new = NULL;
+    NewCollection *new = NULL;
 
-    new = g_malloc0(sizeof(RetrieveCollection));
+    new = (NewCollection *) g_malloc0(sizeof(NewCollection));
     if (!new) {
-	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new RetrieveCollection\n");
+	purple_debug_error(PLUGIN_ID, "ERROR: g_malloc0 new NewCollection\n");
 	return;
     }
 
     new->start = g_strdup(start);
     new->with = g_strdup(with);
+    new->date = g_strndup(start, 10);
+    new->need_to_create_new = TRUE;
 
-    if ( !(new->start) || !(new->with) ) {
-	purple_debug_misc(PLUGIN_ID, "add_collection :: !prepend\n");
+    if ( !(new->start) || !(new->with) || !(new->date) ) {
+	purple_debug_misc(PLUGIN_ID, "add_collection :: !new\n");
+
+	if (new->date)  g_free(new->date);
+	if (new->start) g_free(new->start);
+	if (new->with)  g_free(new->with);
+
+	g_free(new);
 	return;
     }
 
-    curr->coll = g_list_prepend(curr->coll, new);
+    //purple_debug_misc(PLUGIN_ID, "add_collection :: %s :: %s :: %s\n", new->date, new->start, new->with);
+
+    if ( !(curr->coll) ) {
+	//purple_debug_misc(PLUGIN_ID, "add_collection :: !(curr->coll)\n");
+	add_collection_create_new(curr, new);
+    }
+
+    g_list_foreach(curr->coll, (GFunc) add_collection_find, (gpointer) new);
+
+    if (new->need_to_create_new) {
+	//purple_debug_misc(PLUGIN_ID, "add_collection :: new->need_to_create_new\n");
+	add_collection_create_new(curr, new);
+    }
 }
 
 /* explore iq list message */
 static void
 iq_list(WindowStruct *curr, xmlnode *xml)
 {
-    GtkTreeIter iter;
     xmlnode *c = NULL;
     xmlnode *d = NULL;
     char *with = NULL;
     char *start = NULL;
     gchar *last = NULL;
-    gchar *pretty_start = NULL;
 
     /* handle empty collection */
     if ( !xml->child ) {
@@ -407,18 +642,6 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 	    /* save collection with raw date */
 	    add_collection(curr, (gchar *) start, (gchar *) with);
 
-	    /* make pretty date */
-	    pretty_start = make_pretty_date( (gchar *) start);
-	    
-	    /* append to tree_store with pretty date */
-	    gtk_tree_store_append(curr->treestore, &iter, NULL);
-
-	    if (!pretty_start) {
-		gtk_tree_store_set(curr->treestore, &iter, 0, start, -1);
-	    } else {
-		gtk_tree_store_set(curr->treestore, &iter, 0, pretty_start, -1);
-		g_free(pretty_start);
-	    }
 	}
     }
 
@@ -494,6 +717,7 @@ iq_query(WindowStruct *curr, xmlnode *xml)
     xmlnode *c = NULL;
     gboolean feature = FALSE;
     gchar *error_text = NULL;
+    gchar *server_name = NULL;
 
     for (c = xml->child; c; c = c->next) {
 	if ( (strcmp(c->name, "feature") == 0) && (strcmp( (c->child)->name, "var" ) == 0) ) {
@@ -521,11 +745,14 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 
     /* warning dialog with "not supported" message */
     if (feature) {
-	error_text = g_strdup_printf("XEP-0136 Message Archiving for %s Not Supported!", get_server_name(curr->gtkconv));
+	server_name = (gchar *) get_server_name(curr->gtkconv);
+	//error_text = g_strdup_printf("XEP-0136 Message Archiving for %s Not Supported!", get_server_name(curr->gtkconv));
+	error_text = g_strdup_printf("XEP-0136 Message Archiving for %s Not Supported!", server_name);
 
 	purple_notify_warning(PLUGIN_ID, "XEP-0136 Not Supported!", "XEP-0136 Not Supported!", error_text);
 
 	g_free(error_text);
+	g_free(server_name);
     }
 }
 
@@ -878,7 +1105,6 @@ send_disco_info(WindowStruct *curr)
     
     g_free(server);
     g_free(message);
-
 }
 
 /*------------------------------------------------------------
@@ -900,28 +1126,24 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
     GtkTreeIter iter;
     GtkTreeModel *model;
     gchar *date = NULL;
-    gchar *date_raw = NULL;
 
     if (!gtk_tree_selection_get_selected(sel, &model, &iter)) {
 	purple_debug_misc(PLUGIN_ID, "date_selected :: !gtk_tree_selection_get_selected\n");
 	return;
     }
 
+    gtk_imhtml_clear(GTK_IMHTML(curr->imhtml));
+    
     gtk_tree_model_get(model, &iter, 0, &date, -1);
 
-    /* make pretty date from raw date */
-    date_raw = make_raw_date(date);
-    
-    if (!date_raw) {
-	purple_debug_misc(PLUGIN_ID, "date_selected :: !date_raw\n");
-	g_free(date);
+    if (!date) {
+	purple_debug_misc(PLUGIN_ID, "date_selected :: !date\n");
 	return;
     }
 
-    retrieve_collection(curr, date_raw);
+    retrieve_collection(curr, date);
 
     g_free(date);
-    g_free(date_raw);
 }
 
 /* handle imhtml searching */
@@ -1421,7 +1643,7 @@ static PurplePluginInfo info = {
 
     PLUGIN_ID,
     "XEP-0136 plugin",
-    "0.3",
+    "0.5",
 
     "XEP-0136 plugin",
     "Server Message Archiving",

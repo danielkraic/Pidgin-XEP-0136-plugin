@@ -1,4 +1,16 @@
-/* xep136_plugin.h */
+/* 
+ * filename:	xep136_plugin.h 
+ *
+ * author: 	Daniel Kraic
+ * email:	danielkraic@gmail.com
+ * date:	2011-11-16
+ * version:	v0.5
+ *
+ */
+
+#ifndef _XEP136_H
+#define _XEP136_H
+
 
 typedef struct {
     GtkWidget *show_table;
@@ -59,6 +71,13 @@ typedef struct _WindowStruct {
     //indicates end tag in send_iq_list 
     gboolean end_tag_set;
 
+    /* number of retrieve conversations to show in imhtml */
+    int number_of_convs_to_show;
+    /* number of retrieve conversations saved in imhtml_list */
+    int number_of_convs_saved;
+    /* list of imhtml_messages to show */
+    GList *imhtml_list;
+
     //xmlns for current server
     char *xmlns;
 
@@ -70,9 +89,23 @@ typedef struct _WindowStruct {
 
 } WindowStruct;
 
-typedef struct {
+typedef struct _NewCollection {
+    gchar *date;
     gchar *start;
     gchar *with;
+    gchar need_to_create_new;
+} NewCollection;
+
+typedef struct _ImhtmlText {
+    gchar *date;
+    gchar *text;
+} ImhtmlText;
+
+typedef struct {
+    gchar *date;
+    gchar *start;
+    gchar *with;
+    GList *to_retrieve;
 } RetrieveCollection;
 
 typedef struct {
@@ -81,27 +114,33 @@ typedef struct {
 } Test_struct;
 
 typedef struct {
-//    PurpleConnection *gc;
     xmlnode *xml;
     char *id;
     gboolean match;
 } Recipient_info;
 
 /* misc functions, increase_start_time, get_server_name, find_recipient */
-static gchar * make_pretty_date(gchar *raw);
-static gchar * make_raw_date(gchar *pretty);
 static gchar * increase_start_time(gchar *start);
 static gchar * get_my_username(PidginConversation *gtkconv);
 static gchar * get_server_name(PidginConversation *gtkconv);
 static void find_recipient(WindowStruct *curr, Recipient_info *recipient);
 static int get_curr_year(void);
+static void free_imhtml_item(ImhtmlText *item);
+static int imhtml_compare_func(ImhtmlText *a, ImhtmlText *b);
+static void show_imhtml_conv(ImhtmlText *conv, WindowStruct *curr);
 
 /* explore received xmlnode, manage collections */
 static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
-static void retrieve_collection(WindowStruct *curr, char *start);
-static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d);
+static void retrieve_collection_send_message(NewCollection *new, WindowStruct *curr);
+static void retrieve_collection_find(RetrieveCollection *curr, RetrieveCollection *new);
+static void retrieve_collection(WindowStruct *curr, gchar *date);
+static gchar * imhtml_text_make_date(gchar *secs, gchar *start);
+static void imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs, gchar *start);
+static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar *start);
 static void iq_retrieve(WindowStruct *curr, xmlnode *xml);
 static void empty_collection(WindowStruct *curr);
+static void add_collection_create_new(WindowStruct *curr, NewCollection *new);
+static void add_collection_find(RetrieveCollection *curr_coll, NewCollection *new);
 static void add_collection(WindowStruct *curr, gchar *start, gchar *with);
 static void iq_list(WindowStruct *curr, xmlnode *xml);
 static void iq_pref(WindowStruct *curr, xmlnode *xml);
@@ -126,6 +165,7 @@ static void send_disco_info(WindowStruct *curr);
 /* GTK create, destroy, history window */
 static void history_window_destroy(GtkWidget *window, WindowStruct *curr);
 static void date_selected(GtkTreeSelection *sel, WindowStruct *curr);
+static void search_clicked(GtkWidget *button, WindowStruct *curr);
 static void create_right_table(WindowStruct *history_window);
 static void create_left_list(WindowStruct *history_window);
 static void history_window_create(WindowStruct *history_window);
@@ -145,3 +185,5 @@ static void attach_to_pidgin_window(PidginWindow *win, gpointer null);
 static void detach_from_all_windows();
 static void attach_to_all_windows();
 static void conv_created(PurpleConversation *conv, gpointer null);
+
+#endif
