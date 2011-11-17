@@ -4,13 +4,27 @@
  * author: 	Daniel Kraic
  * email:	danielkraic@gmail.com
  * date:	2011-11-16
- * version:	v0.5
+ * version:	v0.4
  *
  */
 
 #ifndef _XEP136_H
 #define _XEP136_H
 
+#define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
+
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+
+#include <gtk/gtk.h>
+
+#include <libpurple/version.h>
+#include <libpurple/debug.h>
+
+#include <pidgin/gtkimhtml.h>
+#include <pidgin/gtkplugin.h>
+#include "pidgin/gtkutils.h"
 
 typedef struct {
     GtkWidget *show_table;
@@ -119,71 +133,41 @@ typedef struct {
     gboolean match;
 } Recipient_info;
 
-/* misc functions, increase_start_time, get_server_name, find_recipient */
-static gchar * increase_start_time(gchar *start);
-static gchar * get_my_username(PidginConversation *gtkconv);
-static gchar * get_server_name(PidginConversation *gtkconv);
-static void find_recipient(WindowStruct *curr, Recipient_info *recipient);
-static int get_curr_year(void);
-static void free_imhtml_item(ImhtmlText *item);
-static int imhtml_compare_func(ImhtmlText *a, ImhtmlText *b);
-static void show_imhtml_conv(ImhtmlText *conv, WindowStruct *curr);
 
-/* explore received xmlnode, manage collections */
-static void send_propher_name(RetrieveCollection *coll, RetrieveCollection *new);
-static void retrieve_collection_send_message(NewCollection *new, WindowStruct *curr);
-static void retrieve_collection_find(RetrieveCollection *curr, RetrieveCollection *new);
-static void retrieve_collection(WindowStruct *curr, gchar *date);
-static gchar * imhtml_text_make_date(gchar *secs, gchar *start);
-static void imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs, gchar *start);
-static void iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar *start);
-static void iq_retrieve(WindowStruct *curr, xmlnode *xml);
-static void empty_collection(WindowStruct *curr);
-static void add_collection_create_new(WindowStruct *curr, NewCollection *new);
-static void add_collection_find(RetrieveCollection *curr_coll, NewCollection *new);
-static void add_collection(WindowStruct *curr, gchar *start, gchar *with);
-static void iq_list(WindowStruct *curr, xmlnode *xml);
-static void iq_pref(WindowStruct *curr, xmlnode *xml);
-static void iq_query_supported(WindowStruct *curr);
-static void iq_query(WindowStruct *curr, xmlnode *xml);
-static void explore_xml(WindowStruct *curr, xmlnode *xml);
-static void xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null);
+extern PurplePlugin *xep136; 	/* plugin id pointer */
+extern GList *list;		/* list of pointers to WindowStruct items */
+extern char *xmlns_ejabberd;
+extern char *xmlns_prosody;
 
-/* send message, service discovery, show, enable, disable, status */
-static void message_send(char *message, PidginConversation *gtkconv);
-static void send_iq_list(WindowStruct *curr, gchar *from, gchar *to);
-static void send_pref_info(WindowStruct *curr);
-static void status_clicked(GtkWidget *button, WindowStruct *curr);
-static void disable_clicked(GtkWidget *button, WindowStruct *curr);
-static void enable_clicked(GtkWidget *button, WindowStruct *curr);
-static void reset_clicked(GtkWidget *button, WindowStruct *curr);
-static gchar *show_clicked_make_to(RightStruct *s);
-static gchar *show_clicked_make_from(RightStruct *s);
-static void show_clicked(GtkWidget *button, WindowStruct *curr);
-static void send_disco_info(WindowStruct *curr);
 
-/* GTK create, destroy, history window */
-static void history_window_destroy(GtkWidget *window, WindowStruct *curr);
-static void date_selected(GtkTreeSelection *sel, WindowStruct *curr);
-static void search_clicked(GtkWidget *button, WindowStruct *curr);
-static void create_right_table(WindowStruct *history_window);
-static void create_left_list(WindowStruct *history_window);
-static void history_window_create(WindowStruct *history_window);
-static void history_window_open(PidginConversation *gtkconv);
-static void history_window_exist_test(WindowStruct *curr, Test_struct *test);
-static void history_button_clicked(GtkWidget *button, PidginConversation *gtkconv);
+extern void empty_collection(WindowStruct *curr);
+extern void add_collection(WindowStruct *curr, gchar *start, gchar *with);
+extern void history_button_clicked(GtkWidget *button, PidginConversation *gtkconv);
 
-/* attach, detach, history_button */
-static gboolean if_jabber(PidginConversation *gtkconv);
-static void destroy_windows(WindowStruct *curr);
-static void destroy_history_window(WindowStruct *curr, PidginConversation *gtkconv);
-static void conv_deleted(PurpleConversation *conv, gpointer null);
-static void detach_from_gtkconv(PidginConversation *gtkconv, gpointer null);
-static void attach_to_gtkconv(PidginConversation *gtkconv, gpointer null);
-static void detach_from_pidgin_window(PidginWindow *win, gpointer null);
-static void attach_to_pidgin_window(PidginWindow *win, gpointer null);
-static void detach_from_all_windows();
-static void attach_to_all_windows();
-static void conv_created(PurpleConversation *conv, gpointer null);
+extern void free_imhtml_item(ImhtmlText *item);
+extern int imhtml_compare_func(ImhtmlText *a, ImhtmlText *b);
+extern void show_imhtml_conv(ImhtmlText *conv, WindowStruct *curr);
+extern void imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs, gchar *start);
+
+extern gchar * increase_start_time(gchar *start);
+extern gchar * get_friend_username(PidginConversation *gtkconv);
+extern gchar * get_my_username(PidginConversation *gtkconv);
+extern gchar * get_server_name(PidginConversation *gtkconv);
+extern void find_recipient(WindowStruct *curr, Recipient_info *recipient);
+extern int get_curr_year(void);
+
+extern void retrieve_collection(WindowStruct *curr, gchar *date);
+extern void explore_xml(WindowStruct *curr, xmlnode *xml);
+extern void xmlnode_received(PurpleConnection *gc, xmlnode **packet, gpointer null);
+
+extern void message_send(char *message, PidginConversation *gtkconv);
+extern void send_iq_list(WindowStruct *curr, gchar *from, gchar *to);
+extern void send_pref_info(WindowStruct *curr);
+extern void status_clicked(GtkWidget *button, WindowStruct *curr);
+extern void disable_clicked(GtkWidget *button, WindowStruct *curr);
+extern void enable_clicked(GtkWidget *button, WindowStruct *curr);
+extern void reset_clicked(GtkWidget *button, WindowStruct *curr);
+extern void show_clicked(GtkWidget *button, WindowStruct *curr);
+extern void send_disco_info(WindowStruct *curr);
 
 #endif
