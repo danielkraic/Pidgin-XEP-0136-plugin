@@ -1,7 +1,17 @@
-/* xep136_plugin.c */
+/* 
+ * filename:	xep136_plugin.c 
+ *
+ * author: 	Daniel Kraic
+ * email:	danielkraic@gmail.com
+ * date:	2011-11-16
+ * version:	v0.5
+ *
+ */
+
 
 #define PURPLE_PLUGINS
 #define PLUGIN_ID "gtk-daniel_kraic-xep136_plugin" 
+
 
 #include <string.h>
 #include <stdlib.h>
@@ -20,61 +30,16 @@
 
 
 static PurplePlugin *xep136 = NULL; 	/* plugin id pointer */
-static GList *list = NULL;		/* list of pointers to WindowStruct */
+static GList *list = NULL;		/* list of pointers to WindowStruct items */
 
 /* xmlns for ejabberd and prosody to xml messages */
 static char *xmlns_ejabberd = "http://www.xmpp.org/extensions/xep-0136.html#ns";
 static char *xmlns_prosody = "urn:xmpp:archive";
 
+
 /*--------------------------------------------------------------------------------
  * misc functions: increase_start_time, get_server_name, find_recipient, ...
  *--------------------------------------------------------------------------------*/
-
-#if 0
-/* return pretty date from raw date
- * example: return 2011-10-18 15:41:05 from 2011-10-18-T15:41:0500000Z */
-static gchar * 
-make_pretty_date(gchar *raw)
-{
-    gchar *pretty;
-    char date_ptr[11];
-    char time_ptr[9];
-
-    strncpy(date_ptr, raw, 10); 
-    strncpy(time_ptr, (raw + 11), 8); 
-
-    date_ptr[10] = '\0';
-    time_ptr[8] = '\0';
-
-    pretty = (gchar *) g_strdup_printf("%s %s", (gchar *) date_ptr, (gchar *) time_ptr);
-
-    //purple_debug_misc(PLUGIN_ID, "make_pretty_date :: %s\n", pretty);
-
-    return pretty;
-}
-
-/* return raw date from pretty date
- * example: return 2011-10-18-T15:41:05Z from 2011-10-18 15:41:05 */
-static gchar * 
-make_raw_date(gchar *pretty)
-{
-    gchar *raw;
-    char date_ptr[11];
-    char time_ptr[9];
-
-    strncpy(date_ptr, pretty, 10); 
-    strncpy(time_ptr, (pretty + 11), 8); 
-
-    date_ptr[10] = '\0';
-    time_ptr[8] = '\0';
-
-    raw = (gchar *) g_strdup_printf("%sT%sZ", (gchar *) date_ptr, (gchar *) time_ptr);
-
-    //purple_debug_misc(PLUGIN_ID, "make_raw_date :: %s\n", raw);
-
-    return raw;
-}
-#endif
 
 /* increase start time by one second */
 static gchar *
@@ -143,22 +108,6 @@ get_my_username(PidginConversation *gtkconv)
 
     return my_username;
 }
-
-#if 0
-/* return user's username (jid) from PurpleAccount */
-static gchar *
-get_my_username(PidginConversation *gtkconv)
-{
-    PurpleConversation *purple_conv = gtkconv->active_conv;
-    PurpleAccount *acc = purple_conv->account;
-    gchar *username= acc->username;
-
-    if (!acc)
-	return NULL;
-
-    return username;
-}
-#endif
 
 /* return server name from users's jid from PurpleAccount */
 static gchar * 
@@ -347,8 +296,6 @@ imhtml_text_make_date(gchar *secs, gchar *start)
     int sec;
     int secs_int = atoi(secs);
 
-    //purple_debug_misc(PLUGIN_ID, "imhtml_text_make_date enter\n");
-
     strncpy(date, start, 10);
     date[10] = '\0';
 
@@ -374,12 +321,8 @@ imhtml_text_make_date(gchar *secs, gchar *start)
     hou += (int) (min / 60);
     min = (int) (min % 60);
     
-    //purple_debug_misc(PLUGIN_ID, "imhtml_text_make_date before g_strdup_printf\n");
-
     //result = g_strdup_printf("%s %c%c:%c%c:%c%c", date, hour[0], hour[1], minute[0], minute[1], second[0], second[1]);
     result = g_strdup_printf("%s %02d:%02d:%02d", date, hou, min, sec);
-
-    //purple_debug_misc(PLUGIN_ID, "imhtml_text_make_date exit\n");
 
     return result;
 }
@@ -410,8 +353,6 @@ imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs,
 	return;
     }
 
-    //purple_debug_misc(PLUGIN_ID, "imhtml_text_save_message enter\n");
-
     new->date = imhtml_text_make_date(secs, start);
     new->text = g_strdup(imhtml_message);
 
@@ -426,12 +367,6 @@ imhtml_text_save_message(WindowStruct *curr, gchar *imhtml_message, gchar *secs,
     }
 
     curr->imhtml_list = g_list_prepend(curr->imhtml_list, new);
-
-    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), new->date, 0);
-    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
-    //gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), new->text, 0);
-
-    //purple_debug_misc(PLUGIN_ID, "imhtml_text_save_message exit\n");
 }
 
 /* explore body of iq retrieve message */
@@ -454,8 +389,6 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar 
 	purple_debug_error(PLUGIN_ID, "ERROR: !secs iq_retrieve_body\n");
 	return;
     }
-
-    //purple_debug_misc(PLUGIN_ID, "iq_retrieve_body enter\n");
 
     my_username = (gchar *) get_my_username(curr->gtkconv);
     friends_username = (gchar *) get_friend_username(curr->gtkconv);
@@ -497,8 +430,6 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar 
     }
 
     g_free(my_username);
-
-    //purple_debug_misc(PLUGIN_ID, "iq_retrieve_body exit\n");
 }
 
 /* explore iq retrieve message */
@@ -526,8 +457,6 @@ iq_retrieve(WindowStruct *curr, xmlnode *xml)
 	purple_debug_error(PLUGIN_ID, "ERROR: !start c->data iq_retrieve\n");
 	return;
     }
-
-    //purple_debug_misc(PLUGIN_ID, "iq_retrieve enter\n");
 
     for (c = xml->child; c; c = c->next) {
 	if ( (strcmp(c->name, "from") == 0) || (strcmp(c->name, "to") == 0) ) { 
@@ -570,8 +499,6 @@ iq_retrieve(WindowStruct *curr, xmlnode *xml)
 	curr->number_of_convs_saved = 0;
 	//gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), "<b>juchu juchu</b><br>", 0);
     }
-
-    //purple_debug_misc(PLUGIN_ID, "iq_retrieve exit\n");
 }
 
 /* handle empty collection */
@@ -668,8 +595,6 @@ add_collection(WindowStruct *curr, gchar *start, gchar *with)
 	//purple_debug_misc(PLUGIN_ID, "add_collection :: new->need_to_create_new\n");
 	add_collection_create_new(curr, new);
     }
-
-    //purple_debug_misc(PLUGIN_ID, "add_collection :: done!\n");
 }
 
 /* explore iq list message */
@@ -1177,7 +1102,6 @@ send_disco_info(WindowStruct *curr)
     
     g_free(server);
     g_free(message);
-
 }
 
 /*------------------------------------------------------------
@@ -1716,7 +1640,7 @@ static PurplePluginInfo info = {
 
     PLUGIN_ID,
     "XEP-0136 plugin",
-    "0.3",
+    "0.5",
 
     "XEP-0136 plugin",
     "Server Message Archiving",

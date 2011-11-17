@@ -1,4 +1,16 @@
-/* xep136_plugin.h */
+/* 
+ * filename:	xep136_plugin.h 
+ *
+ * author: 	Daniel Kraic
+ * email:	danielkraic@gmail.com
+ * date:	2011-11-16
+ * version:	v0.5
+ *
+ */
+
+#ifndef _XEP136_H
+#define _XEP136_H
+
 
 typedef struct {
     GtkWidget *show_table;
@@ -102,15 +114,12 @@ typedef struct {
 } Test_struct;
 
 typedef struct {
-//    PurpleConnection *gc;
     xmlnode *xml;
     char *id;
     gboolean match;
 } Recipient_info;
 
 /* misc functions, increase_start_time, get_server_name, find_recipient */
-static gchar * make_pretty_date(gchar *raw);
-static gchar * make_raw_date(gchar *pretty);
 static gchar * increase_start_time(gchar *start);
 static gchar * get_my_username(PidginConversation *gtkconv);
 static gchar * get_server_name(PidginConversation *gtkconv);
@@ -176,3 +185,5 @@ static void attach_to_pidgin_window(PidginWindow *win, gpointer null);
 static void detach_from_all_windows();
 static void attach_to_all_windows();
 static void conv_created(PurpleConversation *conv, gpointer null);
+
+#endif
