@@ -211,7 +211,7 @@ create_left_list(WindowStruct *history_window)
     g_signal_connect (G_OBJECT (sel), "changed",
 	    G_CALLBACK (date_selected), (gpointer) history_window);
 
-    gtk_widget_set_size_request(GTK_WIDGET(history_window->left_scrolled), 120, -1);
+    gtk_widget_set_size_request(GTK_WIDGET(history_window->left_scrolled), 135, -1);
 }
 
 /* create window */
@@ -278,7 +278,7 @@ history_window_create(WindowStruct *history_window)
     gtk_box_pack_start(GTK_BOX(history_window->rightbox), (history_window->showtable_struct)->show_table, TRUE, FALSE, 0);
 
     //boxing main
-    gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->left, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->left, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->center, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(history_window->mainbox), history_window->rightbox, FALSE, FALSE, 0);
 

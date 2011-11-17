@@ -135,7 +135,7 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar 
 		}
 
 	    	/* write to imhtml */
-		purple_debug_misc(PLUGIN_ID, "\nBODY %s + %s :: %s :: %s<br>\n", start, secs, from_to, text);
+		//purple_debug_misc(PLUGIN_ID, "\nBODY %s + %s :: %s :: %s<br>\n", start, secs, from_to, text);
 		//imhtml_message = g_strdup_printf("%s (%s + %s) :: %s<br>", from_to, start, secs, text);
 		imhtml_message = g_strdup_printf("%s: %s<br>", from_to, text);
 

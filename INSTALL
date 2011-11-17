@@ -1,15 +1,15 @@
 works for me on archlinux with ABS (https://wiki.archlinux.org/index.php/ABS)
 
 install:
-download xep136_plugin.h, xep136_plugin.c and Makefile and run these commands
+download plugin source, extract and run these commands
 	$ make
 	$ make install
 	$ make clean
 
-another method:
-download pidgin source code, xep136_plugin.c, xep136_plugin.h and run these commands
+optional method:
+download pidgin source code and extract, download plugin source code and run these commands
 	$ tar xjvf pidgin-2.10.0.tar.bz2 
-	$ mv xep136_plugin.c xep136_plugin.h pidgin-2.10.0/pidgin/plugins/
+	$ mv xep136_*.c xep136_plugin.h pidgin-2.10.0/pidgin/plugins/
 	$ cd pidgin-2.10.0/
 	$ ./configure
 	$ cd pidgin/plugins/
