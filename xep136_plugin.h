@@ -99,10 +99,11 @@ typedef struct _WindowStruct {
     char *id;
 
     // retrieved collections
-    GList *coll;
+    GList *coll; /* list of RetrieveCollections */
 
 } WindowStruct;
 
+/* collection struct stored in "to_retrieve" list of RetrieveCollection */
 typedef struct _NewCollection {
     gchar *date;
     gchar *start;
@@ -119,7 +120,7 @@ typedef struct {
     gchar *date;
     gchar *start;
     gchar *with;
-    GList *to_retrieve;
+    GList *to_retrieve; /* list of NewCollections */
 } RetrieveCollection;
 
 typedef struct {

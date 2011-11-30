@@ -33,6 +33,13 @@ date_selected(GtkTreeSelection *sel, WindowStruct *curr)
     GtkTreeModel *model;
     gchar *date = NULL;
 
+    /*
+    if (curr->coll) {
+	purple_debug_misc(PLUGIN_ID, "date_selected :: empty curr->coll\n");
+	empty_curr_coll(curr);
+    }
+    */
+
     if (!gtk_tree_selection_get_selected(sel, &model, &iter)) {
 	purple_debug_misc(PLUGIN_ID, "date_selected :: !gtk_tree_selection_get_selected\n");
 	return;
@@ -211,7 +218,7 @@ create_left_list(WindowStruct *history_window)
     g_signal_connect (G_OBJECT (sel), "changed",
 	    G_CALLBACK (date_selected), (gpointer) history_window);
 
-    gtk_widget_set_size_request(GTK_WIDGET(history_window->left_scrolled), 135, -1);
+    gtk_widget_set_size_request(GTK_WIDGET(history_window->left_scrolled), 165, -1);
 }
 
 /* create window */

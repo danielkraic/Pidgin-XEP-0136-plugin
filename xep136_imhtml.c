@@ -30,7 +30,7 @@ void
 show_imhtml_conv(ImhtmlText *conv, WindowStruct *curr)
 {
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), conv->date, 0);
-    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " :: ", 0);
+    gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), " ", 0);
     gtk_imhtml_append_text(GTK_IMHTML(curr->imhtml), conv->text, 0);
 }
 
@@ -74,7 +74,8 @@ imhtml_text_make_date(gchar *secs, gchar *start)
     min = (int) (min % 60);
     
     //result = g_strdup_printf("%s %c%c:%c%c:%c%c", date, hour[0], hour[1], minute[0], minute[1], second[0], second[1]);
-    result = g_strdup_printf("%s %02d:%02d:%02d", date, hou, min, sec);
+    result = g_strdup_printf("(%02d:%02d:%02d)", hou, min, sec);
+    //result = g_strdup_printf("%s %02d:%02d:%02d", date, hou, min, sec);
 
     return result;
 }

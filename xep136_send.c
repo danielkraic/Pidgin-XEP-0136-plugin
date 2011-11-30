@@ -6,6 +6,8 @@
 
 static gchar * show_clicked_make_to(RightStruct *s);
 static gchar * show_clicked_make_from(RightStruct *s);
+static void free_colls_to_retrieve(NewCollection *new);
+static void free_colls_item(RetrieveCollection *coll);
 
 /*----------------------------------------------------------------------
  * functions related to sending xml messages
@@ -220,6 +222,40 @@ show_clicked_make_from(RightStruct *s)
     return from;
 }
 
+/* free item of to_retrieve list */
+static void
+free_colls_to_retrieve(NewCollection *new)
+{
+    if (!new) { 
+	purple_debug_misc(PLUGIN_ID, "free_colls_item :: !new\n");
+	return;
+    }
+
+    if (new->date) g_free(new->date);
+    if (new->start) g_free(new->start);
+    if (new->with)  g_free(new->with);
+}
+
+/* free item of curr->coll list */
+static void
+free_colls_item(RetrieveCollection *coll)
+{
+    if (!coll) {
+	purple_debug_misc(PLUGIN_ID, "free_colls_item :: !coll\n");
+	return;
+    }
+
+    if (coll->to_retrieve) {
+	//g_list_foreach(coll->to_retrieve, (GFunc) free_colls_to_retrieve, NULL);
+	g_list_free(coll->to_retrieve);
+	coll->to_retrieve = NULL;
+    }
+
+    if (coll->date) g_free(coll->date);
+    if (coll->start) g_free(coll->start);
+    if (coll->with) g_free(coll->with);
+}
+
 /* handle show button: send request with "start" = from  and "end" = to */
 void
 show_clicked(GtkWidget *button, WindowStruct *curr)
@@ -236,7 +272,16 @@ show_clicked(GtkWidget *button, WindowStruct *curr)
 
     gtk_tree_store_clear(curr->treestore);
 
+    /*
     if (curr->coll) {
+	g_list_free(curr->coll);
+	curr->coll = NULL;
+    }
+    */
+
+    /* free previous stored curr->coll list */
+    if (curr->coll) {
+	g_list_foreach(curr->coll, (GFunc) free_colls_item, NULL);
 	g_list_free(curr->coll);
 	curr->coll = NULL;
     }

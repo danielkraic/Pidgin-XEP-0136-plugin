@@ -55,7 +55,7 @@ add_collection_create_new(WindowStruct *curr, NewCollection *new)
 static void
 add_collection_find(RetrieveCollection *curr_coll, NewCollection *new)
 {
-    if (strcmp(curr_coll->date, new->date) == 0) {
+    if (strncmp(curr_coll->date, new->date, 13) == 0) {
 
 	//purple_debug_misc(PLUGIN_ID, "add_collection_find :: %s == %s\n", curr_coll->date, new->date);
 
@@ -79,7 +79,11 @@ add_collection(WindowStruct *curr, gchar *start, gchar *with)
 
     new->start = g_strdup(start);
     new->with = g_strdup(with);
-    new->date = g_strndup(start, 10);
+
+    new->date = g_strndup(start, 16);
+    new->date[10] = ' ';
+    //new->date = g_strndup(start, 10);
+
     new->need_to_create_new = TRUE;
 
     if ( !(new->start) || !(new->with) || !(new->date) ) {
