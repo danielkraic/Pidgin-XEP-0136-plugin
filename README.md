@@ -3,15 +3,39 @@ Pidgin XEP-0136 Message Archiving plugin
 
 * **author**: Daniel Kraic
 * **email**: danielkraic@gmail.com
-* **date**: 2011-11-16
+* **date**: 2011-11-30
 * **version**: v0.5
+
+
+##Requirements
+
+It is assumed that you use XMPP server with XEP-0136 extrension support. Ejabberd IM server should works with "mod\_archive\_odbc" enabled as well as Prosody IM server with "archive" module enabled.
+
 
 ##Download
 
 The full git repository is at: <https://github.com/danielkraic/Pidgin-XEP-0136-plugin>
+
 Get it using the following command:
 
     $ git clone git://github.com/danielkraic/Pidgin-XEP-0136-plugin.git
+
+
+##Install
+
+Download plugin source, extract it and run these commands:
+
+    $ make
+    $ make install
+    $ make clean
+
+Restart Pidgin and activate XEP-0136 Plugin in the "Plugins" menu.
+
+You can access history by clicking the "HISTORY" button located at the bottom of Pidgin conversation window. Then "XEP136" window should appears. Next click the "SHOW" button on the right of "XEP-136" window to see list of conversation dates on the left. Select conversation date to see its content.
+
+![history button](http://i450.photobucket.com/albums/qq222/kzr_discofil/docs_xep_button.jpg)
+
+![xep window](http://i450.photobucket.com/albums/qq222/kzr_discofil/docs_xep_main.jpg)
 
 
 ##About
