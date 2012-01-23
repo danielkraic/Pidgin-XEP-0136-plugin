@@ -97,17 +97,17 @@ add_collection(WindowStruct *curr, gchar *start, gchar *with)
 	return;
     }
 
-    //purple_debug_misc(PLUGIN_ID, "add_collection :: %s :: %s :: %s\n", new->date, new->start, new->with);
+    purple_debug_misc(PLUGIN_ID, "#################### add_collection :: %s :: %s :: %s\n", new->date, new->start, new->with);
 
     if ( !(curr->coll) ) {
 	//purple_debug_misc(PLUGIN_ID, "add_collection :: !(curr->coll)\n");
 	add_collection_create_new(curr, new);
-    }
+    } else {
+	g_list_foreach(curr->coll, (GFunc) add_collection_find, (gpointer) new);
 
-    g_list_foreach(curr->coll, (GFunc) add_collection_find, (gpointer) new);
-
-    if (new->need_to_create_new) {
-	//purple_debug_misc(PLUGIN_ID, "add_collection :: new->need_to_create_new\n");
-	add_collection_create_new(curr, new);
+	if (new->need_to_create_new) {
+	    //purple_debug_misc(PLUGIN_ID, "add_collection :: new->need_to_create_new\n");
+	    add_collection_create_new(curr, new);
+	}
     }
 }

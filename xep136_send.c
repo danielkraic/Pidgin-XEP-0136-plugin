@@ -107,6 +107,7 @@ send_pref_info(WindowStruct *curr)
 void
 status_clicked(GtkWidget *button, WindowStruct *curr)
 {
+    g_list_foreach(curr->coll, (GFunc) print_r_collection, NULL);
     send_disco_info(curr);
 }
 

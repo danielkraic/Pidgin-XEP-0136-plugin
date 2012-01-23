@@ -140,6 +140,7 @@ extern GList *list;		/* list of pointers to WindowStruct items */
 extern char *xmlns_ejabberd;
 extern char *xmlns_prosody;
 
+extern void print_r_collection(RetrieveCollection *curr);
 
 extern void empty_collection(WindowStruct *curr);
 extern void add_collection(WindowStruct *curr, gchar *start, gchar *with);

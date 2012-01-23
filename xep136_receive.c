@@ -18,6 +18,16 @@ static void iq_query(WindowStruct *curr, xmlnode *xml);
  * functions related to receiving xml messages 
  *------------------------------------------------------------*/
 
+void
+print_r_collection(RetrieveCollection *curr)
+{
+    //g_list_foreach(curr->coll, (GFunc) print_r_collection, NULL);
+    gchar *text;
+    text = g_strdup_printf("#################### start %s with %s num %d\n", curr->start, curr->with, g_list_length(curr->to_retrieve));
+    purple_debug_misc(PLUGIN_ID, text);
+    g_free(text);
+}
+
 /* compare start time to set exact jid to xml message */
 static void
 send_propher_name(RetrieveCollection *coll, RetrieveCollection *new)
@@ -86,8 +96,8 @@ retrieve_collection(WindowStruct *curr, gchar *date)
     /* set number of collections to show in imhtml */
     curr->number_of_convs_to_show = g_list_length(new->to_retrieve);
 
-    //purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %s :: %s :: %s\n", new->date, new->start, new->with);
-    //purple_debug_misc(PLUGIN_ID, "add_collection_create_new :: %d number_of_convs_to_show\n", curr->number_of_convs_to_show);
+    purple_debug_misc(PLUGIN_ID, "#################### add_collection_create_new :: %s :: %s :: %s\n", new->date, new->start, new->with);
+    purple_debug_misc(PLUGIN_ID, "#################### add_collection_create_new :: number %d number_of_convs_to_show\n", curr->number_of_convs_to_show);
 
     /* retieve all collections for selected date */
     g_list_foreach(new->to_retrieve, (GFunc) retrieve_collection_send_message, (gpointer) curr);
@@ -236,6 +246,7 @@ iq_list(WindowStruct *curr, xmlnode *xml)
     char *with = NULL;
     char *start = NULL;
     gchar *last = NULL;
+    gchar *text;
 
     /* handle empty collection */
     if ( !xml->child ) {
@@ -270,8 +281,12 @@ iq_list(WindowStruct *curr, xmlnode *xml)
 	    }
 
 	    /* save collection with raw date */
+	    text = g_strdup_printf("############### add_collection :: start %s :: with %s\n", start, with);
+	    purple_debug_misc(PLUGIN_ID, text);
+
 	    add_collection(curr, (gchar *) start, (gchar *) with);
 
+	    g_free(text);
 	}
     }
 
@@ -283,10 +298,12 @@ iq_list(WindowStruct *curr, xmlnode *xml)
     */
 
     /* if end tag is not set, retrieve next 100 collections */
+    /*
     if (!curr->end_tag_set) {
 	last = increase_start_time(start);
 	send_iq_list(curr, last, NULL);
     }
+    */
     
     if (last) 
 	g_free(last);
@@ -352,7 +369,10 @@ iq_query(WindowStruct *curr, xmlnode *xml)
 		feature = TRUE;
 
 	    /* find xep-0139 support with xmlns_prosody */
-	    if (strcmp(( c->child)->data, xmlns_prosody) == 0) {
+	    if (strncmp(( c->child)->data, xmlns_prosody, strlen(xmlns_prosody)) == 0) {
+
+		purple_debug_misc(PLUGIN_ID, "iq_query :: xmlns_prosody\n");
+		//purple_notify_warning(PLUGIN_ID, "XEP-0136 Not Supported!", (c->child)->data, (c->child)->data);
 
 		curr->xmlns = xmlns_prosody;
 		iq_query_supported(curr);
