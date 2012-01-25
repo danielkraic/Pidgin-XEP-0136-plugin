@@ -138,10 +138,12 @@ iq_retrieve_body(WindowStruct *curr, xmlnode *c, xmlnode *d, gchar *secs, gchar 
 	    if (text) {
 		if (strcmp(c->name, "from") == 0) {
 		    //from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", get_my_username(curr->gtkconv));
-		    from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", my_username);
+		    from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", friends_username);
+		    //from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", "from");
 		} else {
 		    //from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", get_friend_username(curr->gtkconv));
-		    from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", friends_username);
+		    from_to = g_strdup_printf("<b><font color='#ff0000'>%s</font></b>", my_username);
+		    //from_to = g_strdup_printf("<b><font color='#0000ff'>%s</font></b>", "to");
 		}
 
 	    	/* write to imhtml */
