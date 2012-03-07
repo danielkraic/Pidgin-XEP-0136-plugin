@@ -48,7 +48,7 @@ install: xep136_plugin.so
 	    cp xep136_plugin.so $(INSTDIR); \
 	    echo "xep136_plugin.so installed"; \
 	else \
-	    mkdir $(INSTDIR); \
+	    mkdir -p $(INSTDIR); \
 	    cp xep136_plugin.so $(INSTDIR); \
 	    echo "created $(INSTDIR)"; \
 	    echo "xep136_plugin.so installed"; \
