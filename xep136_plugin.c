@@ -214,7 +214,7 @@ static PurplePluginInfo info = {
 
     PLUGIN_ID,
     "XEP-0136 plugin",
-    "0.5",
+    "0.6",
 
     "XEP-0136 plugin",
     "Server Message Archiving",

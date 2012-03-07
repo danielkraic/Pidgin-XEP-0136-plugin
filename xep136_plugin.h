@@ -1,11 +1,5 @@
 /* 
  * filename:	xep136_plugin.h 
- *
- * author: 	Daniel Kraic
- * email:	danielkraic@gmail.com
- * date:	2011-11-16
- * version:	v0.4
- *
  */
 
 #ifndef _XEP136_H
