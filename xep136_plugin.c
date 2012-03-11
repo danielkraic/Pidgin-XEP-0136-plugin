@@ -4,6 +4,10 @@
 
 #define PURPLE_PLUGINS
 
+#define PREF_BASE	"/plugins/gtk/xep136"
+#define PREF_TOOL	"/plugins/gtk/xep136/toolbar"
+#define PREF_EDIT	"/plugins/gtk/xep136/editbox"
+
 #include "xep136_plugin.h"
 
 PurplePlugin *xep136 = NULL; 	/* plugin id pointer */
@@ -90,7 +94,18 @@ detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
     if (!if_jabber(gtkconv))
 	return;
 
-    toolbar_box = gtkconv->toolbar;
+	/* detach from toolbar */
+	toolbar_box = gtkconv->toolbar;
+
+    hbox = g_object_get_data(G_OBJECT(toolbar_box), "xep136_hbox");
+
+    if (hbox)
+	gtk_container_remove(GTK_CONTAINER(toolbar_box), hbox);
+    
+    gtk_widget_queue_draw(pidgin_conv_get_window(gtkconv)->window);
+
+	/* detach from editbox */
+    toolbar_box = gtkconv->lower_hbox;
 
     hbox = g_object_get_data(G_OBJECT(toolbar_box), "xep136_hbox");
 
@@ -103,27 +118,47 @@ detach_from_gtkconv(PidginConversation *gtkconv, gpointer null)
 static void
 attach_to_gtkconv(PidginConversation *gtkconv, gpointer null)
 {
-    GtkWidget *toolbar_box, *hbox, *button;
+    GtkWidget *hbox, *button;
+	//GtkWidget *menu_item;
 
     if (!if_jabber(gtkconv))
 	return;
 
-    toolbar_box = gtkconv->toolbar;
+	/* attach to toolbar */
+	if (purple_prefs_get_bool(PREF_TOOL)) {
 
-    button = gtk_button_new_with_label("History");
+		button = gtk_button_new_with_label("History");
 
-    g_signal_connect(G_OBJECT(button), "clicked",
-	    G_CALLBACK(history_button_clicked), (gpointer) gtkconv);
+		g_signal_connect(G_OBJECT(button), "clicked",
+			G_CALLBACK(history_button_clicked), (gpointer) gtkconv);
 
-    hbox = gtk_hbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
-    g_object_set_data(G_OBJECT(toolbar_box), "xep136_hbox", hbox);
+		hbox = gtk_hbox_new(FALSE, 5);
+		gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+		g_object_set_data(G_OBJECT(gtkconv->toolbar), "xep136_hbox", hbox);
 
-    gtk_box_pack_end(GTK_BOX(toolbar_box), hbox, FALSE, FALSE, 0);
+		gtk_box_pack_end(GTK_BOX(gtkconv->toolbar), hbox, FALSE, FALSE, 0);
 
-    gtk_widget_show_all(hbox);
+		gtk_widget_show_all(hbox);
+		gtk_widget_queue_draw(pidgin_conv_get_window(gtkconv)->window);
+	}
 
-    gtk_widget_queue_draw(pidgin_conv_get_window(gtkconv)->window);
+	/* attach to editbox */
+	if (purple_prefs_get_bool(PREF_EDIT)) {
+
+		button = gtk_button_new_with_label("History");
+
+		g_signal_connect(G_OBJECT(button), "clicked",
+			G_CALLBACK(history_button_clicked), (gpointer) gtkconv);
+
+		hbox = gtk_hbox_new(FALSE, 5);
+		gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+		g_object_set_data(G_OBJECT(gtkconv->lower_hbox), "xep136_hbox", hbox);
+
+		gtk_box_pack_end(GTK_BOX(gtkconv->lower_hbox), hbox, FALSE, FALSE, 0);
+
+		gtk_widget_show_all(hbox);
+		gtk_widget_queue_draw(pidgin_conv_get_window(gtkconv)->window);
+	}
 }
 
 static void
@@ -202,6 +237,70 @@ plugin_unload(PurplePlugin *plugin)
     return TRUE;
 }
 
+static void
+toolbar_changed(GtkWidget *widget, gpointer data)
+{
+	gboolean on = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+	purple_prefs_set_bool(PREF_TOOL, on);
+}
+
+static void
+editbox_changed(GtkWidget *widget, gpointer data)
+{
+	gboolean on = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+	purple_prefs_set_bool(PREF_EDIT, on);
+}
+
+static GtkWidget *
+get_config_frame(PurplePlugin *plugin)
+{
+	GtkWidget *ret, *frame, *vbox;
+	GtkWidget *toolbar, *editbox;
+
+	ret = gtk_vbox_new(FALSE, 18);
+	gtk_container_set_border_width (GTK_CONTAINER (ret), 12);
+
+	//frame = pidgin_make_frame(ret, _("History button position"));
+	frame = pidgin_make_frame(ret, "History button position");
+	vbox = gtk_vbox_new(FALSE, 5);
+	gtk_container_add(GTK_CONTAINER(frame), vbox);
+
+	/* history button position: toolbar*/
+	toolbar = gtk_check_button_new_with_mnemonic("_Toolbar");
+	gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(toolbar),
+	                             purple_prefs_get_bool(PREF_TOOL));
+	g_signal_connect(G_OBJECT(toolbar), "toggled",
+	                 G_CALLBACK(toolbar_changed), NULL);
+
+	/* history button position: editbox */
+	editbox = gtk_check_button_new_with_mnemonic("_Editbox");
+	gtk_box_pack_start(GTK_BOX(vbox), editbox, FALSE, FALSE, 0);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(editbox),
+	                             purple_prefs_get_bool(PREF_EDIT));
+	g_signal_connect(G_OBJECT(editbox), "toggled",
+	                 G_CALLBACK(editbox_changed), NULL);
+
+	gtk_widget_show_all(ret);
+	return ret;
+}
+
+
+
+static PidginPluginUiInfo ui_info =
+{
+	get_config_frame,
+	0, /* page_num (Reserved) */
+
+	/* padding */
+	NULL,
+	NULL,
+	NULL,
+	NULL
+};
+
 static PurplePluginInfo info = {
     PURPLE_PLUGIN_MAGIC,
     PURPLE_MAJOR_VERSION,
@@ -221,16 +320,16 @@ static PurplePluginInfo info = {
     "Daniel Kraic <danielkraic@gmail.com>",
     "https://github.com/danielkraic/Pidgin-XEP-0136-plugin",
 
-    plugin_load,
-    plugin_unload,
+    plugin_load,	/* load */
+    plugin_unload,	/* unload */
+    NULL,			/* destroy */
 
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL, /*    plugin_actions, */
-    /* this tells libpurple the address of the function to call
-                       to get the list of plugin actions. */
+	&ui_info,		/* ui_info */
+    NULL,			/* extra_info */
+	NULL, 		  	/* prefs_into */
+    NULL, 			/* plugin_actions */
+
+	/* padding */
     NULL,
     NULL,
     NULL,
@@ -240,6 +339,9 @@ static PurplePluginInfo info = {
 static void
 init_plugin(PurplePlugin *plugin)
 {
+	purple_prefs_add_none(PREF_BASE);
+	purple_prefs_add_bool(PREF_TOOL, TRUE);
+	purple_prefs_add_bool(PREF_EDIT, FALSE);
 }
 
 PURPLE_INIT_PLUGIN(xep136_plugin, init_plugin, info)
