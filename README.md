@@ -3,8 +3,8 @@ Pidgin XEP-0136 Message Archiving plugin
 
 * **author**: Daniel Kraic
 * **email**: danielkraic@gmail.com
-* **date**: 2012-03-07
-* **version**: v0.6
+* **date**: 2012-03-11
+* **version**: v0.7
 
 
 ##Requirements
@@ -42,12 +42,13 @@ Download plugin source, extract it and run these commands:
 
 Restart Pidgin and activate XEP-0136 Plugin in the "Plugins" menu.
 
-You can access history by clicking the "HISTORY" button located at the bottom of Pidgin conversation window. Then "XEP136" window should appears. Next click the "SHOW" button on the right of "XEP-136" window to see list of conversation dates on the left. Select conversation date to see its content.
+You can access history by clicking the "HISTORY" button located at the bottom of Pidgin conversation window. Then "XEP136" window should appears. Next click the "SHOW" button on the right of "XEP-136" window to see list of conversation dates on the left. Select conversation date to see its content. You can change default position of "HISTORY" button in "Configure plugin" window in "Plugins" menu. 
 
-![history button](http://i450.photobucket.com/albums/qq222/kzr_discofil/docs_xep_button.jpg)
+![history button1](http://i450.photobucket.com/albums/qq222/kzr_discofil/histbutton1.jpg)
 
 ![xep window](http://i450.photobucket.com/albums/qq222/kzr_discofil/docs_xep_main.jpg)
 
+![history button2](http://i450.photobucket.com/albums/qq222/kzr_discofil/histbutton2.jpg)
 
 ##About
 
