@@ -3,6 +3,9 @@
  */
 
 #include "xep136_plugin.h"
+#ifdef _WIN32
+#include "libpurple/win32/libc_interface.h"
+#endif
 
 /*--------------------------------------------------------------------------------
  * misc functions: increase_start_time, get_server_name, find_recipient, ...
