@@ -9,6 +9,14 @@
 #define PREF_EDIT	"/plugins/gtk/xep136/editbox"
 
 #include "xep136_plugin.h"
+#ifdef _WIN32
+#include "xep136_coll.c"
+#include "xep136_gtk.c"
+#include "xep136_imhtml.c"
+#include "xep136_misc.c"
+#include "xep136_receive.c"
+#include "xep136_send.c"
+#endif
 
 PurplePlugin *xep136 = NULL; 	/* plugin id pointer */
 GList *list = NULL;		/* list of pointers to WindowStruct items */
