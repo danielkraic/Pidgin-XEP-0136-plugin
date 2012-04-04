@@ -40,6 +40,8 @@ Download plugin source, extract it and run these commands:
     $ make install
     $ make clean
 
+Warning: Do NOT run 'make install' command as root.
+
 Restart Pidgin and activate XEP-0136 Plugin in the "Plugins" menu.
 
 You can access history by clicking the "HISTORY" button located at the bottom of Pidgin conversation window. Then "XEP136" window should appears. Next click the "SHOW" button on the right of "XEP-136" window to see list of conversation dates on the left. Select conversation date to see its content. You can change default position of "HISTORY" button in "Configure plugin" window in "Plugins" menu. 
