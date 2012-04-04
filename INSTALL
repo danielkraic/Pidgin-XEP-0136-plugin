@@ -6,6 +6,8 @@ download plugin source, extract and run these commands
 	$ make install
 	$ make clean
 
+Warning: Do NOT run 'make install' command as root
+
 optional method:
 download pidgin source code and extract, download plugin source code and run these commands
 	$ tar xjvf pidgin-2.10.0.tar.bz2 
