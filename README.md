@@ -31,13 +31,12 @@ The full git repository is at: <https://github.com/danielkraic/Pidgin-XEP-0136-p
 
 Get it using the following command:
 
-    $ git clone git://github.com/danielkraic/Pidgin-XEP-0136-plugin.git
+    $ git clone git://github.com/danielkraic/Pidgin-XEP-0136-plugin.git xep136
 
 
 Run these commands:
 
-    $ git clone git://github.com/danielkraic/Pidgin-XEP-0136-plugin.git xep136
-	$ cd xep136
+    $ cd xep136
     $ make
     $ make install
     $ make clean
@@ -48,7 +47,7 @@ Restart Pidgin and activate XEP-0136 Plugin in the "Plugins" menu.
 
 ####Windows 
 
-Download and run ![setup.exe](https://github.com/downloads/danielkraic/Pidgin-XEP-0136-plugin/setup.exe)
+Download and run [setup.exe](https://github.com/downloads/danielkraic/Pidgin-XEP-0136-plugin/setup.exe)
 
 Restart Pidgin and activate XEP-0136 Plugin in the "Plugins" menu.
 
