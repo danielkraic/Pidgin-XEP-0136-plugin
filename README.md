@@ -12,7 +12,7 @@ Pidgin XEP-0136 Message Archiving plugin
 It is assumed that you use XMPP server with XEP-0136 extrension support. Ejabberd IM server should work with "mod\_archive\_odbc" enabled as well as Prosody IM server with "archive" module enabled. Plugin also supports Openfire XMPP server.
 
 
-Requirements for compilation: Pidgin, GTK+, Glib
+Requirements for compilation: Pidgin, GTK+, Glib, Git
 
 Ubuntu:
 
@@ -23,7 +23,9 @@ Fedora:
 	$ sudo yum install pidgin-devel
 
 
-##Download
+##Install
+
+####Linux
 
 The full git repository is at: <https://github.com/danielkraic/Pidgin-XEP-0136-plugin>
 
@@ -32,10 +34,10 @@ Get it using the following command:
     $ git clone git://github.com/danielkraic/Pidgin-XEP-0136-plugin.git
 
 
-##Install
+Run these commands:
 
-Download plugin source, extract it and run these commands:
-
+    $ git clone git://github.com/danielkraic/Pidgin-XEP-0136-plugin.git xep136
+	$ cd xep136
     $ make
     $ make install
     $ make clean
@@ -43,6 +45,17 @@ Download plugin source, extract it and run these commands:
 Warning: Do NOT run 'make install' command as root.
 
 Restart Pidgin and activate XEP-0136 Plugin in the "Plugins" menu.
+
+####Windows 
+
+Download and run ![setup.exe](https://github.com/downloads/danielkraic/Pidgin-XEP-0136-plugin/setup.exe)
+
+Restart Pidgin and activate XEP-0136 Plugin in the "Plugins" menu.
+
+Cross-compilation for Windows was done by following the instructions from <http://code.google.com/p/pidgin-privacy-please/wiki/HowToCrossCompileForWindows>.
+
+
+##Usage
 
 You can access history by clicking the "HISTORY" button located at the bottom of Pidgin conversation window. Then "XEP136" window should appears. Next click the "SHOW" button on the right of "XEP-136" window to see list of conversation dates on the left. Select conversation date to see its content. You can change default position of "HISTORY" button in "Configure plugin" window in "Plugins" menu. 
 
