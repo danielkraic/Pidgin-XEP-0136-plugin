@@ -12,16 +12,7 @@ Pidgin XEP-0136 Message Archiving plugin
 It is assumed that you use XMPP server with XEP-0136 extrension support. Ejabberd IM server should work with "mod\_archive\_odbc" enabled as well as Prosody IM server with "archive" module enabled. Plugin also supports Openfire XMPP server.
 
 
-Requirements for compilation: Pidgin, GTK+, Glib, Git
-
-Ubuntu:
-
-	$ sudo apt-get install pidgin-dev
-
-Fedora:
-
-	$ sudo yum install pidgin-devel
-
+Requirements for compilation: Pidgin, GTK+, Glib, Git, gcc, make
 
 ##Install
 
