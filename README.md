@@ -3,7 +3,7 @@ Pidgin XEP-0136 Message Archiving plugin
 
 * **author**: Daniel Kraic
 * **email**: danielkraic@gmail.com
-* **date**: 2012-03-11
+* **date**: 2013-04-05
 * **version**: v0.7
 
 
